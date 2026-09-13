@@ -1,0 +1,18 @@
+{
+  "name": "games-discord-bot",
+  "version": "1.0.0",
+  "description": "بوت ألعاب ديسكورد احترافي باللغة العربية الفصحى",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": { "node": ">=20.0.0" },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "discord.js": "^14.22.1",
+    "dotenv": "^16.6.1",
+    "undici": "^7.16.0"
+  }
+}
