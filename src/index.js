@@ -16,23 +16,15 @@ import {
   handlePrefixGame,
   activeGames,
   canRunGroup,
-  GROUP_GAMES,
-  SOLO_GAMES,
+  cancelActiveGame,
 } from './games-engine.js';
-import {
-  initDatabase,
-  getGuildSettings,
-  setGuildSettings,
-  getPlayerStats,
-  getLeaderboard,
-} from './store.js';
+import { initDatabase, getGuildSettings, setGuildSettings, getPlayerStats, getLeaderboard } from './store.js';
 
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
 const guildId = process.env.GUILD_ID || null;
 
 if (!token || !clientId) throw new Error('يرجى ضبط DISCORD_TOKEN و CLIENT_ID في ملف البيئة.');
-
 await initDatabase();
 
 const client = new Client({
@@ -72,18 +64,9 @@ const settings = new SlashCommandBuilder()
   .addIntegerOption(option => option.setName('الحد_الأقصى').setDescription('الحد الأقصى للاعبين في الفعالية').setMinValue(2).setMaxValue(20))
   .addIntegerOption(option => option.setName('مدة_الانتظار').setDescription('مدة الـLobby بالثواني').setMinValue(10).setMaxValue(120));
 
-const stats = new SlashCommandBuilder()
-  .setName('نقاطي')
-  .setDescription('عرض نقاطك وإحصائياتك في هذا السيرفر');
-
-const leaderboard = new SlashCommandBuilder()
-  .setName('ترتيب-الألعاب')
-  .setDescription('عرض أفضل لاعبي الألعاب في هذا السيرفر');
-
-const stop = new SlashCommandBuilder()
-  .setName('إيقاف-اللعبة')
-  .setDescription('إيقاف اللعبة الحالية في القناة')
-  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+const stats = new SlashCommandBuilder().setName('نقاطي').setDescription('عرض نقاطك وإحصائياتك في هذا السيرفر');
+const leaderboard = new SlashCommandBuilder().setName('ترتيب-الألعاب').setDescription('عرض أفضل لاعبي الألعاب في هذا السيرفر');
+const stop = new SlashCommandBuilder().setName('إيقاف-اللعبة').setDescription('إيقاف اللعبة الحالية في القناة');
 
 const rest = new REST({ version: '10' }).setToken(token);
 await rest.put(
@@ -120,8 +103,8 @@ async function handleSettingsCommand(interaction) {
         `👥 الحد الأقصى: **${current.maxPlayers}** لاعب`,
         `⏱️ مدة الـLobby: **${current.lobbySeconds}** ثانية`,
         '',
-        'الألعاب الفردية متاحة للجميع بنظام `.<اللعبة>` ولا تمنح نقاطاً.',
-        'الفعاليات الجماعية تبدأ بنظام `-<اللعبة>` وتحتاج الإدارة أو رئيس الفعاليات.',
+        'الفردي: `.<اللعبة>` — متاح للجميع ولا يمنح نقاطاً.',
+        'الجماعي: `-<اللعبة>` — فعالية تحتاج الإدارة أو رئيس الفعاليات وتمنح نقاطاً للفائزين.',
       ].join('\n'))],
   });
 }
@@ -129,8 +112,9 @@ async function handleSettingsCommand(interaction) {
 async function handleStatsCommand(interaction) {
   const value = getPlayerStats(interaction.guildId, interaction.user.id);
   return interaction.reply({
-    embeds: [new EmbedBuilder().setTitle(`📊 إحصائيات ${interaction.member.displayName}`)
-      .setDescription(`🏆 النقاط: **${value.points}**\n🥇 الانتصارات: **${value.wins}**\n🎮 الفعاليات: **${value.games}**`)],
+    embeds: [new EmbedBuilder()
+      .setTitle(`📊 إحصائيات ${interaction.member.displayName}`)
+      .setDescription(`🏆 النقاط: **${value.points}**\n🥇 الانتصارات: **${value.wins}**\n🎮 المشاركات الجماعية: **${value.games}**`)],
   });
 }
 
@@ -156,17 +140,11 @@ client.on('interactionCreate', async interaction => {
       } else if (interaction.commandName === 'إيقاف-اللعبة') {
         const allowed = canRunGroup(interaction.member, getGuildSettings(interaction.guildId));
         if (!allowed) {
-          await interaction.reply({ content: '⛔ غير مسموح لك بإيقاف الفعالية.', ephemeral: true });
+          await interaction.reply({ content: '⛔ غير مسموح لك بإيقاف اللعبة.', ephemeral: true });
           return;
         }
-        const state = activeGames.get(interaction.channelId);
-        if (!state) {
-          await interaction.reply({ content: 'لا توجد لعبة نشطة في هذه القناة.', ephemeral: true });
-          return;
-        }
-        state.cancelled = true;
-        const stopped = await import('./games-engine.js').then(module => module.cancelActiveGame(interaction.channelId));
-        await interaction.reply({ content: stopped ? '✅ تم إيقاف اللعبة الحالية.' : 'لا توجد لعبة نشطة في هذه القناة.', ephemeral: true });
+        const stopped = await cancelActiveGame(interaction.channelId);
+        await interaction.reply({ content: stopped ? '✅ تم إيقاف اللعبة الحالية.' : 'ℹ️ لا توجد لعبة نشطة في هذه القناة.', ephemeral: true });
       }
       return;
     }
