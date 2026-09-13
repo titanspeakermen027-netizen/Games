@@ -18,7 +18,8 @@ import {
   canRunGroup,
   cancelActiveGame,
 } from './games-engine.js';
-import { initDatabase, getGuildSettings, setGuildSettings, getPlayerStats, getLeaderboard } from './store.js';
+import { handleDrawMessage, handleDrawButton, startDrawGame } from './draw-game.js';
+import { initDatabase, getGuildSettings, setGuildSettings, getPlayerStats, getLeaderboard, getDrawSettings, setDrawSettings } from './store.js';
 
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
@@ -64,6 +65,21 @@ const settings = new SlashCommandBuilder()
   .addIntegerOption(option => option.setName('الحد_الأقصى').setDescription('الحد الأقصى للاعبين في الفعالية').setMinValue(2).setMaxValue(20))
   .addIntegerOption(option => option.setName('مدة_الانتظار').setDescription('مدة الـLobby بالثواني').setMinValue(10).setMaxValue(120));
 
+const drawSettingsCommand = new SlashCommandBuilder()
+  .setName('إعدادات-الرسمة')
+  .setDescription('إعدادات فعالية خمّن الرسمة')
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+  .addIntegerOption(option => option.setName('الحد_الأقصى').setDescription('الحد الأقصى للاعبين').setMinValue(3).setMaxValue(20))
+  .addIntegerOption(option => option.setName('مؤقت_البداية').setDescription('وقت الـLobby بالثواني').setMinValue(10).setMaxValue(90))
+  .addStringOption(option => option.setName('الصعوبة').setDescription('مستوى الكلمات').addChoices(
+    { name: 'سهل', value: 'easy' },
+    { name: 'متوسط', value: 'medium' },
+    { name: 'صعب', value: 'hard' },
+  ))
+  .addBooleanOption(option => option.setName('الرسم_المتحرك').setDescription('إظهار الرسم على مراحل متتابعة'))
+  .addRoleOption(option => option.setName('منشن_البداية').setDescription('رتبة يتم منشنها عند بداية الـLobby'))
+  .addStringOption(option => option.setName('رسالة_البداية').setDescription('رسالة البداية المخصصة'));
+
 const stats = new SlashCommandBuilder().setName('نقاطي').setDescription('عرض نقاطك وإحصائياتك في هذا السيرفر');
 const leaderboard = new SlashCommandBuilder().setName('ترتيب-الألعاب').setDescription('عرض أفضل لاعبي الألعاب في هذا السيرفر');
 const stop = new SlashCommandBuilder().setName('إيقاف-اللعبة').setDescription('إيقاف اللعبة الحالية في القناة');
@@ -71,12 +87,12 @@ const stop = new SlashCommandBuilder().setName('إيقاف-اللعبة').setDes
 const rest = new REST({ version: '10' }).setToken(token);
 await rest.put(
   guildId ? Routes.applicationGuildCommands(clientId, guildId) : Routes.applicationCommands(clientId),
-  { body: [play, settings, stats, leaderboard, stop].map(command => command.toJSON()) },
+  { body: [play, settings, drawSettingsCommand, stats, leaderboard, stop].map(command => command.toJSON()) },
 );
 
 client.once('ready', () => {
   console.log(`✅ تم تسجيل الدخول باسم ${client.user.tag}`);
-  client.user.setActivity('ألعاب ديسكورد | .اسرع | -مافيا');
+  client.user.setActivity('ألعاب ديسكورد | .اسرع | -رسمة');
 });
 
 async function handleSettingsCommand(interaction) {
@@ -109,6 +125,42 @@ async function handleSettingsCommand(interaction) {
   });
 }
 
+async function handleDrawSettingsCommand(interaction) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
+    return interaction.reply({ content: '⛔ تحتاج صلاحية إدارة السيرفر.', ephemeral: true });
+  }
+  const patch = {};
+  const maxPlayers = interaction.options.getInteger('الحد_الأقصى');
+  const startSeconds = interaction.options.getInteger('مؤقت_البداية');
+  const difficulty = interaction.options.getString('الصعوبة');
+  const animated = interaction.options.getBoolean('الرسم_المتحرك');
+  const mentionRole = interaction.options.getRole('منشن_البداية');
+  const startMessage = interaction.options.getString('رسالة_البداية');
+  if (maxPlayers !== null) patch.maxPlayers = maxPlayers;
+  if (startSeconds !== null) patch.startSeconds = startSeconds;
+  if (difficulty) patch.difficulty = difficulty;
+  if (animated !== null) patch.animated = animated;
+  if (mentionRole) patch.startMentionRoleId = mentionRole.id;
+  if (startMessage !== null) patch.startMessage = startMessage;
+
+  const current = setDrawSettings(interaction.guildId, patch);
+  return interaction.reply({
+    embeds: [new EmbedBuilder()
+      .setTitle('🎨 إعدادات خمّن الرسمة')
+      .setDescription([
+        '🔟 عدد الجولات: **10** (ثابت)',
+        `👥 الحد الأقصى: **${current.maxPlayers}** لاعب`,
+        `⏱️ مؤقت البداية: **${current.startSeconds}** ثانية`,
+        `🧩 الصعوبة: **${current.difficulty === 'easy' ? 'سهل' : current.difficulty === 'medium' ? 'متوسط' : 'صعب'}**`,
+        `🎞️ الرسم: **${current.animated ? 'متحرك/متدرج' : 'صور متدرجة'}**`,
+        `📣 منشن البداية: ${current.startMentionRoleId ? `<@&${current.startMentionRoleId}>` : 'لا يوجد'}`,
+        `📝 رسالة البداية: ${current.startMessage ? `**${current.startMessage}**` : 'افتراضية'}`,
+        '',
+        '💡 كل لاعب عندو تلميح واحد فقط فكل جولة، والتلميح كيبان ليه بوحده.',
+      ].join('\n'))],
+  });
+}
+
 async function handleStatsCommand(interaction) {
   const value = getPlayerStats(interaction.guildId, interaction.user.id);
   return interaction.reply({
@@ -130,9 +182,13 @@ client.on('interactionCreate', async interaction => {
   try {
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName === 'لعب') {
-        await handleGameCommand(interaction, interaction.options.getString('اللعبة', true));
+        const game = interaction.options.getString('اللعبة', true);
+        if (game === 'draw') await startDrawGame(interaction);
+        else await handleGameCommand(interaction, game);
       } else if (interaction.commandName === 'إعدادات-الألعاب') {
         await handleSettingsCommand(interaction);
+      } else if (interaction.commandName === 'إعدادات-الرسمة') {
+        await handleDrawSettingsCommand(interaction);
       } else if (interaction.commandName === 'نقاطي') {
         await handleStatsCommand(interaction);
       } else if (interaction.commandName === 'ترتيب-الألعاب') {
@@ -150,7 +206,11 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.isButton()) {
-      await handleButton(interaction);
+      if (interaction.customId.startsWith('draw:') || interaction.customId.startsWith('drawlobby:')) {
+        await handleDrawButton(interaction);
+      } else {
+        await handleButton(interaction);
+      }
       return;
     }
 
@@ -166,8 +226,17 @@ client.on('interactionCreate', async interaction => {
 client.on('messageCreate', async message => {
   if (!message.guild || message.author.bot) return;
   const command = message.content.trim().split(/\s+/)[0];
-  if (!command.startsWith('.') && !command.startsWith('-')) return;
+  if (!command.startsWith('.') && !command.startsWith('-')) {
+    await handleDrawMessage(message).catch(error => console.error('[draw]', error));
+    return;
+  }
   try {
+    if (command === '-رسمة') {
+      await startDrawGame(message);
+      return;
+    }
+    const handledDrawGuess = await handleDrawMessage(message);
+    if (handledDrawGuess) return;
     await handlePrefixGame(message, command);
   } catch (error) {
     console.error('[prefix]', error);
