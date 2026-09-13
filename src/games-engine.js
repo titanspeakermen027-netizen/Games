@@ -148,6 +148,10 @@ async function createGroupLobby(source, gameId) {
     state.message = await source.channel.send({ embeds: [lobbyEmbed(state)], components: lobbyComponents(state) }).catch(() => null);
   }
 
+  if (!state.message) {
+    activeGames.delete(state.channelId);
+    return;
+  }
   state.timeout = setTimeout(() => autoStart(state).catch(console.error), state.lobbySeconds * 1000);
 }
 
@@ -156,10 +160,10 @@ async function autoStart(state) {
   if (state.players.length < minPlayers(state.id)) {
     activeGames.delete(state.channelId);
     clearTimeout(state.timeout);
-    await state.message?.edit({ embeds: [lobbyEmbed(state).setDescription(`${lobbyEmbed(state).data.description}\n\n⏱️ انتهى الوقت قبل اكتمال الحد الأدنى، وتم إلغاء الفعالية.`)], components: [] }).catch(() => {});
+    await state.message.edit({ embeds: [lobbyEmbed(state).setDescription(`${lobbyEmbed(state).data.description}\n\n⏱️ انتهى الوقت قبل اكتمال الحد الأدنى، وتم إلغاء الفعالية.`)], components: [] }).catch(() => {});
     return;
   }
-  await startGroup(state, state.message?.channel);
+  await startGroup(state, state.message.channel);
 }
 
 async function startGroup(state, channel) {
@@ -213,10 +217,9 @@ async function launchGroup(state, channel) {
   }
 }
 
-export async function cancelActiveGame(channelId, actor = null) {
+export async function cancelActiveGame(channelId) {
   const state = activeGames.get(channelId);
   if (!state) return false;
-  if (actor && !canRunGroup(actor.member || actor, getGuildSettings(state.guildId))) return false;
   state.cancelled = true;
   clearTimeout(state.timeout);
   stopCollectors(state);
@@ -228,6 +231,7 @@ export async function cancelActiveGame(channelId, actor = null) {
 
 export async function handlePrefixGame(message, command) {
   if (!message.guild || message.author.bot) return false;
+
   if (command === GROUP_STOP) {
     const state = activeGames.get(message.channelId);
     if (!state) {
@@ -245,6 +249,7 @@ export async function handlePrefixGame(message, command) {
   const groupId = PREFIX_ALIASES.group[command];
   const soloId = PREFIX_ALIASES.solo[command];
   if (!groupId && !soloId) return false;
+
   if (activeGames.has(message.channelId)) {
     await message.reply('⚠️ كاينة لعبة أو فعالية خدامة دابا فهاد الروم.').catch(() => {});
     return true;
@@ -269,10 +274,10 @@ export async function handleButton(interaction) {
 
   const state = activeGames.get(interaction.channelId);
   if (!state || state.finished || state.cancelled) return safeReply(interaction, { content: 'لا توجد لعبة نشطة.', ephemeral: true });
-  if (type === 'xo') return handleXOButton(interaction, state);
-  if (type === 'rps') return handleRPSButton(interaction, state);
-  if (type === 'chairs') return handleChairButton(interaction, state);
-  if (type === 'solo') return handleSoloButton(interaction, state, key);
+  if (type === 'xo') return handleXOButton(interaction, state, key, action);
+  if (type === 'rps') return handleRPSButton(interaction, state, key, action);
+  if (type === 'chairs') return handleChairButton(interaction, state, key, action);
+  if (type === 'solo') return handleSoloButton(interaction, state, key, action);
   return safeReply(interaction, { content: 'هذا الزر لم يعد صالحاً.', ephemeral: true });
 }
 
@@ -304,13 +309,13 @@ async function handleLobbyButton(interaction, key, action) {
   }
 }
 
-async function handleXOButton(interaction, state) {
+async function handleXOButton(interaction, state, roundKey, action) {
   const round = state.currentRound;
-  if (!round || round.message?.id !== interaction.message.id) return safeReply(interaction, { content: 'هذه الجولة ليست نشطة.', ephemeral: true });
+  if (!round || round.key !== roundKey || round.message?.id !== interaction.message.id) return safeReply(interaction, { content: 'هذه الجولة ليست نشطة.', ephemeral: true });
   const expected = round.turn === 0 ? round.a : round.b;
   if (interaction.user.id !== expected) return safeReply(interaction, { content: 'ليس دورك الآن.', ephemeral: true });
-  const index = Number(interaction.customId.split(':')[1]);
-  if (!Number.isInteger(index) || round.board[index]) return safeReply(interaction, { content: 'هذه الخانة غير متاحة.', ephemeral: true });
+  const index = Number(action);
+  if (!Number.isInteger(index) || index < 0 || index > 8 || round.board[index]) return safeReply(interaction, { content: 'هذه الخانة غير متاحة.', ephemeral: true });
   round.board[index] = round.turn === 0 ? '❌' : '⭕';
   round.moves += 1;
   const win = winner(round.board);
@@ -318,7 +323,7 @@ async function handleXOButton(interaction, state) {
     const roundWinner = win ? expected : random([round.a, round.b]);
     round.resolve(roundWinner);
     await interaction.deferUpdate().catch(() => {});
-    await round.message.edit({ embeds: [xoEmbed(round.a, round.b, round.board, round.turn, true)], components: xoRows(round.board, false) }).catch(() => {});
+    await round.message.edit({ embeds: [xoEmbed(round.a, round.b, round.board, round.turn, true)], components: xoRows(round.board, false, round.key) }).catch(() => {});
     return;
   }
   if (round.hot && round.moves >= 6) {
@@ -327,7 +332,7 @@ async function handleXOButton(interaction, state) {
     if (mine.length) round.board[random(mine)] = null;
   }
   round.turn = round.turn === 0 ? 1 : 0;
-  await interaction.update({ embeds: [xoEmbed(round.a, round.b, round.board, round.turn)], components: xoRows(round.board, true) });
+  await interaction.update({ embeds: [xoEmbed(round.a, round.b, round.board, round.turn)], components: xoRows(round.board, true, round.key) });
 }
 
 async function playXO(channel, state, hot) {
@@ -338,9 +343,10 @@ async function playXO(channel, state, hot) {
       if (!players[i + 1]) { next.push(players[i]); continue; }
       const a = players[i], b = players[i + 1];
       const board = Array(9).fill(null);
-      const msg = await channel.send({ embeds: [xoEmbed(a, b, board, 0)], components: xoRows(board, true) });
+      const roundKey = keygen();
+      const msg = await channel.send({ embeds: [xoEmbed(a, b, board, 0)], components: xoRows(board, true, roundKey) });
       const winnerId = await new Promise(resolve => {
-        state.currentRound = { a, b, board, message: msg, turn: 0, moves: 0, hot, resolve };
+        state.currentRound = { key: roundKey, a, b, board, message: msg, turn: 0, moves: 0, hot, resolve };
         state.currentRound.timer = setTimeout(() => resolve(null), 30000);
       });
       clearTimeout(state.currentRound?.timer);
@@ -352,10 +358,10 @@ async function playXO(channel, state, hot) {
   await finish(state, channel, players[0] && !state.cancelled ? [players[0]] : []);
 }
 
-function xoRows(board, enabled) {
+function xoRows(board, enabled, key) {
   return [0,1,2].map(row => new ActionRowBuilder().addComponents([0,1,2].map(col => {
     const i = row * 3 + col;
-    return new ButtonBuilder().setCustomId(`xo:${i}`).setLabel(board[i] || '·').setStyle(board[i] ? ButtonStyle.Secondary : ButtonStyle.Primary).setDisabled(!enabled || Boolean(board[i]));
+    return new ButtonBuilder().setCustomId(`xo:${key}:${i}`).setLabel(board[i] || '·').setStyle(board[i] ? ButtonStyle.Secondary : ButtonStyle.Primary).setDisabled(!enabled || Boolean(board[i]));
   })));
 }
 
@@ -372,11 +378,14 @@ function winner(board) {
   return null;
 }
 
-async function handleRPSButton(interaction, state) {
+async function handleRPSButton(interaction, state, roundKey, action) {
   const round = state.currentRound;
-  if (!round || !round.alive.includes(interaction.user.id)) return safeReply(interaction, { content: 'أنت لست ضمن هذه الجولة.', ephemeral: true });
+  if (!round || round.key !== roundKey || !round.messageId || round.messageId !== interaction.message.id) return safeReply(interaction, { content: 'هذه الجولة ليست نشطة.', ephemeral: true });
+  if (!round.alive.includes(interaction.user.id)) return safeReply(interaction, { content: 'أنت لست ضمن هذه الجولة.', ephemeral: true });
   if (round.picks.has(interaction.user.id)) return safeReply(interaction, { content: 'تم تسجيل اختيارك من قبل.', ephemeral: true });
-  round.picks.set(interaction.user.id, Number(interaction.customId.split(':')[1]));
+  const choice = Number(action);
+  if (![0,1,2].includes(choice)) return safeReply(interaction, { content: 'اختيار غير صالح.', ephemeral: true });
+  round.picks.set(interaction.user.id, choice);
   await interaction.reply({ content: '✅ تسجل الاختيار.', ephemeral: true }).catch(() => {});
   if (round.picks.size >= round.alive.length) round.resolve();
 }
@@ -385,12 +394,14 @@ async function playRPS(channel, state) {
   let alive = [...state.players];
   while (alive.length > 1 && !state.cancelled) {
     const picks = new Map();
-    state.currentRound = { alive, picks, resolve: () => {} };
-    await channel.send({ content: '✊ **حجرة ورقة مقص** — اختار قبل ما يسالي الوقت!', components: [new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('rps:0').setLabel('حجرة').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('rps:1').setLabel('ورقة').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('rps:2').setLabel('مقص').setStyle(ButtonStyle.Primary),
+    const roundKey = keygen();
+    state.currentRound = { key: roundKey, alive, picks, resolve: () => {}, messageId: null, timer: null };
+    const message = await channel.send({ content: '✊ **حجرة ورقة مقص** — اختار قبل ما يسالي الوقت!', components: [new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`rps:${roundKey}:0`).setLabel('حجرة').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`rps:${roundKey}:1`).setLabel('ورقة').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`rps:${roundKey}:2`).setLabel('مقص').setStyle(ButtonStyle.Primary),
     )] });
+    state.currentRound.messageId = message.id;
     await new Promise(resolve => {
       state.currentRound.resolve = resolve;
       state.currentRound.timer = setTimeout(resolve, 12000);
@@ -414,9 +425,10 @@ function rpsWinner(values) {
   return 2;
 }
 
-async function handleChairButton(interaction, state) {
+async function handleChairButton(interaction, state, roundKey, action) {
   const round = state.currentRound;
-  if (!round || !round.players.includes(interaction.user.id)) return safeReply(interaction, { content: 'أنت لست ضمن الجولة.', ephemeral: true });
+  if (!round || round.key !== roundKey || round.messageId !== interaction.message.id || action !== 'sit') return safeReply(interaction, { content: 'هذه الجولة ليست نشطة.', ephemeral: true });
+  if (!round.players.includes(interaction.user.id)) return safeReply(interaction, { content: 'أنت لست ضمن الجولة.', ephemeral: true });
   if (round.seated.has(interaction.user.id)) return safeReply(interaction, { content: 'جلستي من قبل.', ephemeral: true });
   if (round.seated.size >= round.seats) return safeReply(interaction, { content: 'الكراسي تسدو.', ephemeral: true });
   round.seated.add(interaction.user.id);
@@ -428,8 +440,10 @@ async function playChairs(channel, state) {
   let players = [...state.players];
   while (players.length > 1 && !state.cancelled) {
     const seats = players.length - 1;
-    state.currentRound = { players, seats, seated: new Set(), resolve: () => {}, timer: null };
-    await channel.send({ content: `🎵 **كراسي** — عندكم **${seats}** كراسي. اللي ما يلقى كرسي يخرج.`, components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('chairs:sit').setLabel('اجلس 🪑').setStyle(ButtonStyle.Success))] });
+    const roundKey = keygen();
+    state.currentRound = { key: roundKey, players, seats, seated: new Set(), resolve: () => {}, timer: null, messageId: null };
+    const message = await channel.send({ content: `🎵 **كراسي** — عندكم **${seats}** كراسي. اللي ما يلقى كرسي يخرج.`, components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`chairs:${roundKey}:sit`).setLabel('اجلس 🪑').setStyle(ButtonStyle.Success))] });
+    state.currentRound.messageId = message.id;
     await new Promise(resolve => {
       state.currentRound.resolve = resolve;
       state.currentRound.timer = setTimeout(resolve, 15000);
@@ -460,15 +474,17 @@ async function playDice(channel, state) {
 
 async function playMafia(channel, state) {
   const players = [...state.players];
-  const mafia = new Set(shuffle(players).slice(0, Math.max(1, Math.floor(players.length / 4))));
+  const mafiaCount = Math.max(1, Math.floor(players.length / 4));
+  const mafia = new Set(shuffle(players).slice(0, mafiaCount));
   for (const id of players) {
     await channel.guild.members.fetch(id).then(member => member.send(`🎭 دورك في مافيا: **${mafia.has(id) ? 'مافيا' : 'مواطن'}**.`)).catch(() => {});
   }
   await channel.send(`🎭 بدأت مافيا بـ **${players.length}** لاعبين. الأدوار توصلات فالخاص.`);
   await sleep(7000);
   const town = players.filter(id => !mafia.has(id));
-  const winnerSet = mafia.size >= Math.max(1, town.length - 1) ? [...mafia] : town;
-  await finish(state, channel, winnerSet, `🎭 النتيجة: **${winnerSet === town ? 'المواطنون فازوا' : 'المافيا فازت'}**\n🏆 ${mention(winnerSet)}`);
+  const mafiaWins = mafia.size >= Math.max(1, town.length - 1);
+  const winners = mafiaWins ? [...mafia] : town;
+  await finish(state, channel, winners, `🎭 النتيجة: **${mafiaWins ? 'المافيا فازت' : 'المواطنون فازوا'}**\n🏆 ${mention(winners)}`);
 }
 
 async function playHide(channel, state) {
@@ -552,16 +568,17 @@ async function startSolo(channel, guildId, gameId, starterId, source) {
 
   const answer = gameId === 'fast' ? random(task.answers) : null;
   const prompt = gameId === 'fast' ? `⚡ **أسرع:** كتب بالضبط: **${answer}**` : task.prompt;
-  await (source?.isChatInputCommand?.() ? source.editReply({ content: `${prompt}\n🎮 هادي لعبة فردية، ما كتمنح حتى نقطة.` }).catch(() => {}) : channel.send(`${prompt}\n🎮 هادي لعبة فردية، ما كتمنح حتى نقطة.`));
+  if (source?.isChatInputCommand?.()) await source.editReply({ content: `${prompt}\n🎮 هادي لعبة فردية، ما كتمنح حتى نقطة.` }).catch(() => {});
+  else await channel.send(`${prompt}\n🎮 هادي لعبة فردية، ما كتمنح حتى نقطة.`).catch(() => {});
 
   const collector = channel.createMessageCollector({ time: 10000, filter: message => !message.author.bot });
-  const state = { id: gameId, guildId, channelId: channel.id, starterId, finished: false };
+  const state = { id: gameId, guildId, channelId: channel.id, starterId, finished: false, answer };
   activeGames.set(channel.id, state);
   rememberCollector(state, collector);
   collector.on('collect', message => {
     const value = message.content.trim();
     const accepted = task.answers
-      ? task.answers.some(answerValue => answerValue.toLowerCase() === value.toLowerCase()) && (gameId !== 'fast' || value.toLowerCase() === answer.toLowerCase())
+      ? (gameId === 'fast' ? value.toLowerCase() === answer.toLowerCase() : task.answers.some(v => v.toLowerCase() === value.toLowerCase()))
       : (gameId === 'letter' && value.startsWith('م'));
     if (!accepted || state.finished) return;
     state.finished = true;
@@ -576,8 +593,8 @@ async function startSolo(channel, guildId, gameId, starterId, source) {
   });
 }
 
-async function handleSoloButton(interaction, state, key) {
-  if (state.id !== 'button' || state.key !== key) return safeReply(interaction, { content: 'هذا الزر لم يعد صالحاً.', ephemeral: true });
+async function handleSoloButton(interaction, state, key, action) {
+  if (state.id !== 'button' || state.key !== key || action !== 'press') return safeReply(interaction, { content: 'هذا الزر لم يعد صالحاً.', ephemeral: true });
 }
 
 async function handleModal() {}
