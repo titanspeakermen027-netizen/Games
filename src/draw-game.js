@@ -8,628 +8,107 @@ const ROUNDS = 10;
 const MIN_PLAYERS = 3;
 const ROUND_SECONDS = 30;
 const FRAME_COUNT = 6;
-const FRAME_INTERVAL_MS = Math.floor((ROUND_SECONDS * 1000) / FRAME_COUNT);
+const FRAME_MS = Math.floor((ROUND_SECONDS * 1000) / FRAME_COUNT);
 
 const WORDS = [
-  { answer: 'شمس', aliases: ['شمس'], difficulty: 'easy', clue: 'شيء كيبان فالسماء وكيعطي الضوء والدفء.', draw: 'sun' },
-  { answer: 'قطة', aliases: ['قطة', 'قط'], difficulty: 'easy', clue: 'حيوان أليف صغير كيموء.', draw: 'cat' },
-  { answer: 'بيت', aliases: ['بيت', 'منزل', 'دار'], difficulty: 'easy', clue: 'مكان كيسكنو فيه الناس.', draw: 'house' },
-  { answer: 'كرة', aliases: ['كرة'], difficulty: 'easy', clue: 'شيء دائري كنلعبو به بزاف ديال الألعاب.', draw: 'ball' },
-  { answer: 'شجرة', aliases: ['شجرة'], difficulty: 'easy', clue: 'نبات كبير عندو جذع وفروع.', draw: 'tree' },
-  { answer: 'تفاحة', aliases: ['تفاحة', 'تفاح'], difficulty: 'easy', clue: 'فاكهة معروفة ويمكن تكون حمراء أو خضراء.', draw: 'apple' },
-  { answer: 'بيتزا', aliases: ['بيتزا'], difficulty: 'medium', clue: 'أكلة دائرية عليها الجبن ومكونات مختلفة.', draw: 'pizza' },
-  { answer: 'سيارة', aliases: ['سيارة', 'عربية'], difficulty: 'medium', clue: 'وسيلة نقل بأربع عجلات.', draw: 'car' },
-  { answer: 'طائرة', aliases: ['طائرة', 'طيارة'], difficulty: 'medium', clue: 'وسيلة نقل كتطير فالسماء.', draw: 'plane' },
-  { answer: 'مظلة', aliases: ['مظلة', 'شمسية'], difficulty: 'medium', clue: 'كتستعمل للحماية من الشتا أو الشمس.', draw: 'umbrella' },
-  { answer: 'كاميرا', aliases: ['كاميرا'], difficulty: 'medium', clue: 'آلة كتستعمل لالتقاط الصور.', draw: 'camera' },
-  { answer: 'ساعة', aliases: ['ساعة'], difficulty: 'medium', clue: 'كتعطيك الوقت.', draw: 'clock' },
-  { answer: 'غيتار', aliases: ['غيتار', 'قيتار'], difficulty: 'hard', clue: 'آلة موسيقية عندها أوتار.', draw: 'guitar' },
-  { answer: 'صاروخ', aliases: ['صاروخ'], difficulty: 'hard', clue: 'مركبة كتقدر تمشي للفضاء.', draw: 'rocket' },
-  { answer: 'تاج', aliases: ['تاج'], difficulty: 'hard', clue: 'كيترمز للملك أو الملكة.', draw: 'crown' },
-  { answer: 'قطار', aliases: ['قطار'], difficulty: 'hard', clue: 'وسيلة نقل كتسافر فوق السكة.', draw: 'train' },
-  { answer: 'كعكة', aliases: ['كعكة', 'كيكة', 'طورطة'], difficulty: 'hard', clue: 'حلوى كتكون حاضرة فالحفلات والمناسبات.', draw: 'cake' },
-  { answer: 'حاسوب', aliases: ['حاسوب', 'كمبيوتر', 'كومبيوتر'], difficulty: 'hard', clue: 'جهاز إلكتروني كنستعملوه للعمل والألعاب.', draw: 'computer' },
+  ['شمس','شمس','easy','sun'],['قمر','قمر','easy','moon'],['نجمة','نجمه','easy','star'],['سحابة','سحابه','easy','cloud'],
+  ['قطة','قطه|قط','easy','cat'],['كلب','كلب','easy','dog'],['سمكة','سمكه','easy','fish'],['طائر','طاير|طائر','easy','bird'],
+  ['بيت','بيت|منزل|دار','easy','house'],['شجرة','شجره','easy','tree'],['زهرة','زهره|وردة|ورده','easy','flower'],['تفاحة','تفاحه|تفاح','easy','apple'],
+  ['كرة','كره','easy','ball'],['كتاب','كتاب','easy','book'],['كوب','كوب|كاس|كأس','easy','cup'],['مفتاح','مفتاح','easy','key'],
+  ['قلب','قلب','easy','heart'],['نظارة','نظاره','easy','glasses'],['مظلة','مظله|شمسية|شمسيه','easy','umbrella'],['شمعة','شمعه','easy','candle'],
+  ['سيارة','سياره|عربية|عربيه','medium','car'],['دراجة','دراجه|بيسيكليت','medium','bike'],['طائرة','طيارة|طياره|طائره','medium','plane'],['قطار','قطار','medium','train'],
+  ['سفينة','سفينه|باخرة|باخره','medium','ship'],['بيتزا','بيتزا','medium','pizza'],['كعكة','كعكه|كيكة|كيكه|طورطة|طروطه','medium','cake'],['كاميرا','كاميرا','medium','camera'],
+  ['ساعة','ساعه','medium','clock'],['هاتف','هاتف|تلفون','medium','phone'],['حاسوب','حاسوب|كمبيوتر|كومبيوتر','medium','computer'],['روبوت','روبوت','medium','robot'],
+  ['بالون','بالون','medium','balloon'],['مروحية','مروحيه|هليكوبتر','medium','helicopter'],['صاروخ','صاروخ','medium','rocket'],['مطرقة','مطرقه','medium','hammer'],
+  ['غيتار','قيتار|غيتار','hard','guitar'],['تاج','تاج','hard','crown'],['بركان','بركان','hard','volcano'],['قوس قزح','قوسقزح|قوس قزح','hard','rainbow'],
+  ['قلعة','قلعه','hard','castle'],['مجرة','مجره','hard','galaxy'],['ميكروفون','ميكروفون','hard','microphone'],['مغناطيس','مغناطيس','hard','magnet'],
+  ['بوصلة','بوصله','hard','compass'],['منطاد','منطاد','hard','airship'],['مصباح','مصباح|لامبة|لامبه','hard','lamp'],
 ];
-
-const difficultyRank = { easy: 1, medium: 2, hard: 3 };
-const scoreCap = { easy: 140, medium: 220, hard: 300 };
-
-const rand = max => Math.floor(Math.random() * max);
-const keygen = () => Math.random().toString(36).slice(2, 10);
-
-function escapeMentions(text) {
-  return String(text || '').replaceAll('@everyone', '@ everyone').replaceAll('@here', '@ here');
-}
-
-function normalize(text) {
-  return String(text || '')
-    .normalize('NFKC')
-    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, '')
-    .replace(/ـ/g, '')
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/ى/g, 'ي')
-    .replace(/ة/g, 'ه')
-    .replace(/ؤ/g, 'و')
-    .replace(/ئ/g, 'ي')
-    .replace(/[\s_\-]+/g, '')
-    .replace(/[^\p{L}\p{N}]/gu, '')
-    .toLowerCase();
-}
-
-function matchingPool(difficulty) {
-  const rank = difficultyRank[difficulty] || 3;
-  return WORDS.filter(word => difficultyRank[word.difficulty] <= rank);
-}
-
-function pickWord(state) {
-  const pool = matchingPool(state.settings.difficulty);
-  const used = state.usedAnswers;
-  const available = pool.filter(word => !used.has(word.answer));
-  const selected = rand((available.length ? available : pool).length);
-  const word = (available.length ? available : pool)[selected];
-  used.add(word.answer);
-  return word;
-}
-
-function shuffle(items) {
-  return [...items].sort(() => Math.random() - 0.5);
-}
-
-function hiddenWord(word) {
-  return [...word.answer].map(char => /[\u0600-\u06FF\u0041-\u007A]/.test(char) ? '＿' : char).join(' ');
-}
-
-function revealLetters(answer, count = 2) {
-  const indices = [...answer]
-    .map((char, index) => /[\u0600-\u06FF\u0041-\u007A]/.test(char) ? index : -1)
-    .filter(index => index >= 0);
-  const selected = shuffle(indices).slice(0, Math.min(count, indices.length));
-  return [...answer].map((char, index) => selected.includes(index) ? char : '＿').join(' ');
-}
-
-function roundHeader(state, word, remainingSeconds) {
-  return new EmbedBuilder()
-    .setTitle('🎨 خمّن الرسمة')
-    .setDescription([
-      `**الجولة ${state.round} / ${ROUNDS}**`,
-      `⏱️ باقي: **${Math.max(0, Math.ceil(remainingSeconds))}ث**`,
-      '',
-      `الكلمة: **${hiddenWord(word)}**`,
-      '',
-      '👀 شوف تفاصيل الرسمة وخمنها فالشات.',
-      '💡 عندك **تلميح واحد فقط** فهاد اللعبة، وكيبان ليك بوحدك.',
-    ].join('\n'))
-    .setFooter({ text: 'أول تخمين صحيح كيربح الجولة • التخمينات الخاطئة ما عليها حتى عقوبة' });
-}
-
-function lobbyEmbed(state, remaining) {
-  return new EmbedBuilder()
-    .setTitle('🎨 خمّن الرسمة')
-    .setDescription([
-      escapeMentions(state.settings.startMessage || 'شوف الرسمة، ركز فالتفاصيل، وحاول تكون أول واحد يخمنها!'),
-      '',
-      `👥 اللاعبون: **${state.players.length}/${state.settings.maxPlayers}**`,
-      `✅ الحد الأدنى: **${MIN_PLAYERS}**`,
-      `⏱️ البداية بعد: **${Math.max(0, Math.ceil(remaining))}ث**`,
-      `🧩 الصعوبة: **${difficultyName(state.settings.difficulty)}**`,
-      `🎞️ نمط الرسم: **${state.settings.animated ? 'متدرج متحرك' : 'صور متدرجة'}**`,
-      '',
-      'اضغط **انضمام** باش تدخل، وخرج من الجولة ماشي ممكن من بعد البداية.',
-    ].join('\n'));
-}
-
-function difficultyName(value) {
-  return value === 'easy' ? 'سهل' : value === 'medium' ? 'متوسط' : 'صعب';
-}
-
-function lobbyButtons(state, disabled = false) {
-  return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`drawlobby:${state.key}:join`).setLabel('انضمام').setEmoji('🎮').setStyle(ButtonStyle.Primary).setDisabled(disabled),
-    new ButtonBuilder().setCustomId(`drawlobby:${state.key}:start`).setLabel('بدء').setEmoji('▶️').setStyle(ButtonStyle.Success).setDisabled(disabled),
-    new ButtonBuilder().setCustomId(`drawlobby:${state.key}:cancel`).setLabel('إلغاء').setEmoji('✖️').setStyle(ButtonStyle.Danger).setDisabled(disabled),
-  )];
-}
-
-function roundButtons(state) {
-  return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`draw:${state.key}:hint`).setLabel('تلميح').setEmoji('💡').setStyle(ButtonStyle.Secondary),
-  )];
-}
-
-function drawEmbed(state, word, remaining) {
-  return roundHeader(state, word, remaining);
-}
-
-function finishEmbed(state, rows) {
-  const ranked = [...state.totals.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
-  const lines = ranked.length
-    ? ranked.map(([id, points], index) => `**${index + 1}.** <@${id}> — **${points} نقطة**${state.roundWins.get(id) ? ` • ${state.roundWins.get(id)} جولات` : ''}`).join('\n')
-    : 'ما كاين حتى نقاط.';
-  const winners = ranked.length ? ranked[0][0] : null;
-  return new EmbedBuilder()
-    .setTitle('🏁 خمّن الرسمة انتهات')
-    .setDescription([
-      `تم لعب **${ROUNDS} جولات**.`,
-      '',
-      '🏆 **الترتيب النهائي**',
-      lines,
-      '',
-      winners ? `👑 البطل: <@${winners}>` : '😅 ما ربح حتى واحد.',
-      '',
-      rows.length ? `📈 أعلى نقاط الجولة: **${Math.max(...rows.map(row => row.points))}**` : '',
-    ].filter(Boolean).join('\n'));
-}
-
-function createCanvas(width = 760, height = 480) {
-  const image = PImage.make(width, height);
-  const ctx = image.getContext('2d');
-  ctx.fillStyle = '#f7f3ea';
-  ctx.fillRect(0, 0, width, height);
-  ctx.lineWidth = 8;
-  ctx.strokeStyle = '#263238';
-  ctx.fillStyle = '#263238';
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  return { image, ctx };
-}
-
-function circle(ctx, x, y, r, fill = null, stroke = '#263238', line = 8) {
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = line; ctx.stroke(); }
-}
-
-function line(ctx, x1, y1, x2, y2, width = 8) {
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.lineWidth = width;
-  ctx.stroke();
-}
-
-function rect(ctx, x, y, w, h, fill = null, stroke = '#263238', lineWidth = 8, radius = 0) {
-  ctx.beginPath();
-  if (radius && ctx.roundRect) ctx.roundRect(x, y, w, h, radius);
-  else ctx.rect(x, y, w, h);
-  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth; ctx.stroke(); }
-}
-
-function drawSun(ctx, frame) {
-  const r = frame >= 2 ? 70 : 48;
-  circle(ctx, 370, 210, r, '#ffd54f', frame >= 1 ? '#f57f17' : '#ffd54f', 8);
-  if (frame >= 2) for (let i = 0; i < 8; i++) {
-    const a = (Math.PI * 2 * i) / 8;
-    line(ctx, 370 + Math.cos(a) * 95, 210 + Math.sin(a) * 95, 370 + Math.cos(a) * 125, 210 + Math.sin(a) * 125, 7);
-  }
-  if (frame >= 4) {
-    circle(ctx, 350, 195, 5, '#263238', null, 0);
-    circle(ctx, 390, 195, 5, '#263238', null, 0);
-    ctx.beginPath(); ctx.arc(370, 220, 25, 0, Math.PI); ctx.stroke();
-  }
-  if (frame >= 5) {
-    line(ctx, 115, 360, 625, 360, 7);
-    for (let x = 140; x < 620; x += 70) line(ctx, x, 360, x - 20, 405, 5);
-  }
-}
-
-function drawCat(ctx, frame) {
-  circle(ctx, 380, 230, 105, '#ffcc80', '#8d5524', 8);
-  ctx.beginPath(); ctx.moveTo(305, 160); ctx.lineTo(325, 95); ctx.lineTo(365, 145); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(395, 145); ctx.lineTo(440, 95); ctx.lineTo(455, 170); ctx.stroke();
-  if (frame >= 2) { circle(ctx, 345, 220, 8, '#263238', null, 0); circle(ctx, 415, 220, 8, '#263238', null, 0); }
-  if (frame >= 3) { circle(ctx, 380, 255, 12, '#e57373', '#8d5524', 5); line(ctx, 380, 267, 350, 290, 5); line(ctx, 380, 267, 410, 290, 5); }
-  if (frame >= 4) { line(ctx, 280, 255, 225, 240, 5); line(ctx, 280, 275, 220, 280, 5); line(ctx, 480, 255, 535, 240, 5); }
-  if (frame >= 5) { ctx.beginPath(); ctx.arc(535, 320, 85, -1.3, 1.2); ctx.stroke(); }
-}
-
-function drawHouse(ctx, frame) {
-  if (frame >= 1) rect(ctx, 230, 190, 300, 190, '#ffe0b2', '#6d4c41', 8);
-  if (frame >= 2) { ctx.beginPath(); ctx.moveTo(205, 195); ctx.lineTo(380, 75); ctx.lineTo(555, 195); ctx.closePath(); ctx.fillStyle = '#ef9a9a'; ctx.fill(); ctx.strokeStyle = '#6d4c41'; ctx.stroke(); }
-  if (frame >= 3) rect(ctx, 345, 285, 70, 95, '#8d6e63', '#5d4037', 7);
-  if (frame >= 4) { rect(ctx, 270, 235, 65, 60, '#81d4fa', '#1565c0', 7); rect(ctx, 425, 235, 65, 60, '#81d4fa', '#1565c0', 7); }
-  if (frame >= 5) { circle(ctx, 130, 340, 45, '#81c784', '#388e3c', 7); circle(ctx, 630, 340, 45, '#81c784', '#388e3c', 7); line(ctx, 80, 390, 675, 390, 7); }
-}
-
-function drawBall(ctx, frame) {
-  circle(ctx, 380, 250, frame >= 2 ? 105 : 70, '#90caf9', '#1565c0', 9);
-  if (frame >= 3) {
-    line(ctx, 305, 185, 350, 230, 7); line(ctx, 455, 185, 410, 230, 7);
-    line(ctx, 300, 320, 350, 270, 7); line(ctx, 460, 320, 410, 270, 7);
-  }
-  if (frame >= 4) { circle(ctx, 380, 250, 28, '#ffffff', '#263238', 6); }
-  if (frame >= 5) { line(ctx, 380, 145, 380, 355, 5); line(ctx, 275, 250, 485, 250, 5); }
-}
-
-function drawTree(ctx, frame) {
-  if (frame >= 1) rect(ctx, 340, 235, 80, 160, '#8d6e63', '#5d4037', 7);
-  if (frame >= 2) { circle(ctx, 380, 190, 110, '#81c784', '#2e7d32', 8); circle(ctx, 300, 220, 70, '#81c784', '#2e7d32', 7); circle(ctx, 460, 220, 70, '#81c784', '#2e7d32', 7); }
-  if (frame >= 3) { line(ctx, 380, 270, 335, 330, 7); line(ctx, 380, 270, 430, 330, 7); }
-  if (frame >= 4) { circle(ctx, 320, 160, 10, '#ffcc80', null, 0); circle(ctx, 420, 150, 10, '#ffcc80', null, 0); }
-  if (frame >= 5) line(ctx, 180, 395, 580, 395, 7);
-}
-
-function drawApple(ctx, frame) {
-  circle(ctx, 345, 250, 78, '#ef5350', '#b71c1c', 8); circle(ctx, 420, 250, 78, '#ef5350', '#b71c1c', 8);
-  if (frame >= 2) { line(ctx, 382, 175, 400, 125, 10); line(ctx, 395, 135, 450, 115, 7); }
-  if (frame >= 3) { circle(ctx, 435, 115, 28, '#66bb6a', '#2e7d32', 6); }
-  if (frame >= 5) line(ctx, 245, 350, 520, 350, 6);
-}
-
-function drawPizza(ctx, frame) {
-  ctx.beginPath(); ctx.moveTo(195, 130); ctx.lineTo(585, 160); ctx.lineTo(355, 390); ctx.closePath();
-  ctx.fillStyle = '#ffd180'; ctx.fill(); ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 8; ctx.stroke();
-  if (frame >= 2) { circle(ctx, 315, 190, 18, '#ef5350', '#b71c1c', 5); circle(ctx, 410, 210, 18, '#ef5350', '#b71c1c', 5); }
-  if (frame >= 3) { circle(ctx, 370, 285, 18, '#66bb6a', '#2e7d32', 5); circle(ctx, 465, 250, 18, '#ef5350', '#b71c1c', 5); }
-  if (frame >= 4) { line(ctx, 245, 205, 540, 225, 6); line(ctx, 260, 250, 480, 275, 6); }
-  if (frame >= 5) { ctx.beginPath(); ctx.arc(390, 165, 185, 0.1, 1.1); ctx.stroke(); }
-}
-
-function drawCar(ctx, frame) {
-  if (frame >= 1) rect(ctx, 175, 240, 420, 110, '#ef5350', '#b71c1c', 8, 18);
-  if (frame >= 2) { ctx.beginPath(); ctx.moveTo(250, 240); ctx.lineTo(315, 175); ctx.lineTo(470, 175); ctx.lineTo(525, 240); ctx.closePath(); ctx.fillStyle = '#ffcdd2'; ctx.fill(); ctx.stroke(); }
-  if (frame >= 3) { circle(ctx, 270, 360, 45, '#263238', '#111827', 7); circle(ctx, 500, 360, 45, '#263238', '#111827', 7); }
-  if (frame >= 4) { line(ctx, 330, 185, 330, 235, 6); line(ctx, 420, 185, 420, 235, 6); }
-  if (frame >= 5) { circle(ctx, 205, 285, 12, '#fff59d', '#f9a825', 5); circle(ctx, 570, 285, 12, '#fff59d', '#f9a825', 5); }
-}
-
-function drawPlane(ctx, frame) {
-  if (frame >= 1) { line(ctx, 190, 275, 575, 220, 12); line(ctx, 360, 250, 290, 135, 12); }
-  if (frame >= 2) { line(ctx, 350, 250, 310, 360, 12); line(ctx, 435, 240, 530, 320, 12); }
-  if (frame >= 3) { circle(ctx, 230, 270, 18, '#90caf9', '#1565c0', 5); circle(ctx, 285, 260, 18, '#90caf9', '#1565c0', 5); }
-  if (frame >= 4) { line(ctx, 510, 225, 600, 205, 7); line(ctx, 530, 215, 620, 235, 7); }
-  if (frame >= 5) { line(ctx, 170, 150, 230, 150, 5); line(ctx, 140, 185, 210, 185, 5); }
-}
-
-function drawUmbrella(ctx, frame) {
-  if (frame >= 1) { ctx.beginPath(); ctx.arc(380, 235, 140, Math.PI, 0); ctx.lineTo(520, 235); ctx.closePath(); ctx.fillStyle = '#64b5f6'; ctx.fill(); ctx.stroke(); }
-  if (frame >= 2) { line(ctx, 380, 235, 380, 385, 9); ctx.beginPath(); ctx.arc(380, 390, 35, 0, Math.PI); ctx.stroke(); }
-  if (frame >= 3) for (const x of [270, 325, 435, 490]) line(ctx, x, 235, x - 10, 255, 5);
-  if (frame >= 4) for (const [x, y] of [[230,300],[295,335],[465,310],[530,295],[580,345]]) { line(ctx, x, y, x - 12, y + 26, 5); line(ctx, x - 12, y + 26, x - 4, y + 38, 5); }
-  if (frame >= 5) line(ctx, 120, 410, 640, 410, 7);
-}
-
-function drawCamera(ctx, frame) {
-  if (frame >= 1) rect(ctx, 205, 180, 350, 205, '#b0bec5', '#455a64', 8, 18);
-  if (frame >= 2) { rect(ctx, 290, 145, 90, 40, '#90a4ae', '#455a64', 7, 9); circle(ctx, 380, 280, 72, '#eceff1', '#455a64', 8); circle(ctx, 380, 280, 42, '#90caf9', '#1565c0', 7); }
-  if (frame >= 3) circle(ctx, 500, 225, 12, '#ef5350', '#b71c1c', 5);
-  if (frame >= 4) { line(ctx, 235, 205, 280, 205, 5); line(ctx, 235, 225, 275, 225, 5); }
-  if (frame >= 5) { ctx.beginPath(); ctx.arc(380, 280, 25, 0, Math.PI * 2); ctx.stroke(); }
-}
-
-function drawClock(ctx, frame) {
-  circle(ctx, 380, 250, 125, '#fffde7', '#5d4037', 8);
-  if (frame >= 2) { line(ctx, 380, 250, 380, 175, 8); line(ctx, 380, 250, 445, 280, 8); }
-  if (frame >= 3) for (let i = 0; i < 12; i++) { const a = (Math.PI * 2 * i) / 12; line(ctx, 380 + Math.cos(a) * 105, 250 + Math.sin(a) * 105, 380 + Math.cos(a) * 118, 250 + Math.sin(a) * 118, 5); }
-  if (frame >= 4) { circle(ctx, 380, 250, 9, '#263238', null, 0); line(ctx, 320, 115, 350, 95, 7); line(ctx, 410, 95, 440, 115, 7); }
-  if (frame >= 5) { line(ctx, 240, 395, 520, 395, 6); }
-}
-
-function drawGuitar(ctx, frame) {
-  if (frame >= 1) { circle(ctx, 360, 300, 72, '#ffb74d', '#8d5524', 8); circle(ctx, 410, 270, 54, '#ffb74d', '#8d5524', 8); }
-  if (frame >= 2) { line(ctx, 395, 255, 555, 115, 13); line(ctx, 555, 115, 600, 150, 12); }
-  if (frame >= 3) { circle(ctx, 380, 300, 16, '#263238', '#263238', 4); }
-  if (frame >= 4) for (const offset of [-6, -2, 2, 6]) line(ctx, 390 + offset, 260, 548 + offset, 118, 2);
-  if (frame >= 5) { line(ctx, 600, 150, 610, 110, 6); line(ctx, 610, 110, 635, 120, 6); }
-}
-
-function drawRocket(ctx, frame) {
-  if (frame >= 1) { ctx.beginPath(); ctx.moveTo(380, 90); ctx.quadraticCurveTo(500, 190, 455, 315); ctx.lineTo(380, 375); ctx.lineTo(305, 315); ctx.quadraticCurveTo(260, 190, 380, 90); ctx.closePath(); ctx.fillStyle = '#eceff1'; ctx.fill(); ctx.stroke(); }
-  if (frame >= 2) { circle(ctx, 380, 205, 37, '#90caf9', '#1565c0', 7); }
-  if (frame >= 3) { line(ctx, 315, 290, 265, 340, 12); line(ctx, 445, 290, 495, 340, 12); }
-  if (frame >= 4) { ctx.beginPath(); ctx.moveTo(345, 365); ctx.lineTo(380, 445); ctx.lineTo(415, 365); ctx.fillStyle = '#ff8a65'; ctx.fill(); ctx.stroke(); }
-  if (frame >= 5) { circle(ctx, 115, 100, 4, '#263238', null, 0); circle(ctx, 650, 120, 5, '#263238', null, 0); circle(ctx, 630, 370, 4, '#263238', null, 0); }
-}
-
-function drawCrown(ctx, frame) {
-  if (frame >= 1) { ctx.beginPath(); ctx.moveTo(210, 170); ctx.lineTo(270, 320); ctx.lineTo(490, 320); ctx.lineTo(550, 170); ctx.lineTo(470, 230); ctx.lineTo(380, 150); ctx.lineTo(290, 230); ctx.closePath(); ctx.fillStyle = '#ffd54f'; ctx.fill(); ctx.stroke(); }
-  if (frame >= 2) { circle(ctx, 270, 320, 14, '#ef5350', '#b71c1c', 5); circle(ctx, 380, 320, 14, '#42a5f5', '#1565c0', 5); circle(ctx, 490, 320, 14, '#66bb6a', '#2e7d32', 5); }
-  if (frame >= 3) { line(ctx, 280, 345, 480, 345, 10); }
-  if (frame >= 5) { circle(ctx, 380, 100, 16, '#ffd54f', '#f9a825', 5); }
-}
-
-function drawTrain(ctx, frame) {
-  if (frame >= 1) rect(ctx, 150, 205, 430, 145, '#90caf9', '#1565c0', 8, 18);
-  if (frame >= 2) { rect(ctx, 185, 235, 90, 70, '#e3f2fd', '#1565c0', 6); rect(ctx, 310, 235, 90, 70, '#e3f2fd', '#1565c0', 6); rect(ctx, 435, 235, 90, 70, '#e3f2fd', '#1565c0', 6); }
-  if (frame >= 3) { circle(ctx, 240, 370, 35, '#263238', '#111827', 6); circle(ctx, 490, 370, 35, '#263238', '#111827', 6); }
-  if (frame >= 4) { line(ctx, 145, 350, 585, 350, 7); line(ctx, 110, 405, 630, 405, 6); }
-  if (frame >= 5) { rect(ctx, 585, 235, 70, 115, '#ffcc80', '#ef6c00', 7); circle(ctx, 620, 380, 10, '#ef5350', '#b71c1c', 5); }
-}
-
-function drawCake(ctx, frame) {
-  if (frame >= 1) rect(ctx, 250, 250, 260, 125, '#f8bbd0', '#ad1457', 8, 12);
-  if (frame >= 2) { rect(ctx, 220, 215, 320, 55, '#fce4ec', '#ad1457', 8, 20); }
-  if (frame >= 3) { rect(ctx, 330, 145, 22, 70, '#fff59d', '#f9a825', 5); rect(ctx, 405, 145, 22, 70, '#fff59d', '#f9a825', 5); }
-  if (frame >= 4) { line(ctx, 341, 135, 341, 120, 6); line(ctx, 416, 135, 416, 120, 6); }
-  if (frame >= 5) { circle(ctx, 341, 112, 6, '#ff7043', null, 0); circle(ctx, 416, 112, 6, '#ff7043', null, 0); line(ctx, 210, 385, 550, 385, 6); }
-}
-
-function drawComputer(ctx, frame) {
-  if (frame >= 1) rect(ctx, 205, 120, 350, 220, '#b0bec5', '#455a64', 8, 14);
-  if (frame >= 2) rect(ctx, 235, 150, 290, 155, '#90caf9', '#1565c0', 7, 8);
-  if (frame >= 3) { rect(ctx, 330, 345, 100, 25, '#78909c', '#455a64', 6, 6); rect(ctx, 280, 370, 200, 22, '#90a4ae', '#455a64', 6, 6); }
-  if (frame >= 4) { line(ctx, 270, 200, 315, 200, 5); line(ctx, 270, 225, 355, 225, 5); line(ctx, 270, 250, 340, 250, 5); }
-  if (frame >= 5) { circle(ctx, 480, 165, 9, '#ef5350', '#b71c1c', 4); circle(ctx, 480, 195, 9, '#ffd54f', '#f9a825', 4); circle(ctx, 480, 225, 9, '#66bb6a', '#2e7d32', 4); }
-}
-
-const DRAWERS = {
-  sun: drawSun, cat: drawCat, house: drawHouse, ball: drawBall, tree: drawTree, apple: drawApple,
-  pizza: drawPizza, car: drawCar, plane: drawPlane, umbrella: drawUmbrella, camera: drawCamera,
-  clock: drawClock, guitar: drawGuitar, rocket: drawRocket, crown: drawCrown, train: drawTrain,
-  cake: drawCake, computer: drawComputer,
-};
-
-async function renderDrawing(word, frame) {
-  const { image, ctx } = createCanvas();
-  const drawer = DRAWERS[word.draw];
-  if (drawer) drawer(ctx, Math.max(1, frame));
-  else drawSun(ctx, frame);
-
-  const stream = new PassThrough();
-  const chunks = [];
-  stream.on('data', chunk => chunks.push(chunk));
-  const done = new Promise((resolve, reject) => {
-    stream.on('end', () => resolve(Buffer.concat(chunks)));
-    stream.on('error', reject);
-  });
-  PImage.encodePNGToStream(image, stream).catch(rejectPromise => stream.destroy(rejectPromise));
-  return done;
-}
-
-function rejectPromise(error) {
-  return error;
-}
-
-function buildAttachment(buffer) {
-  return new AttachmentBuilder(buffer, { name: 'guess-the-draw.png' });
-}
-
-function calculateScore(word, elapsedMs) {
-  const cap = scoreCap[word.difficulty] || scoreCap.hard;
-  const ratio = Math.max(0, Math.min(1, 1 - elapsedMs / (ROUND_SECONDS * 1000)));
-  return Math.max(10, Math.round(cap * (0.35 + ratio * 0.65)));
-}
-
-function addTotals(state, winnerId, points) {
-  state.totals.set(winnerId, (state.totals.get(winnerId) || 0) + points);
-  state.roundWins.set(winnerId, (state.roundWins.get(winnerId) || 0) + 1);
-}
-
-async function recordStateResults(state) {
-  const players = new Set(state.players);
-  for (const id of players) {
-    recordResult(state.guildId, id, state.roundWins.get(id) || 0, state.totals.get(id) || 0);
-  }
-}
-
-async function updateRoundMessage(state, word, frame, startedAt, message) {
-  const elapsed = Date.now() - startedAt;
-  const remaining = Math.max(0, ROUND_SECONDS - elapsed / 1000);
-  const buffer = await renderDrawing(word, frame);
-  await message.edit({
-    embeds: [drawEmbed(state, word, remaining)],
-    files: [buildAttachment(buffer)],
-    components: roundButtons(state),
-  }).catch(() => {});
-  return remaining;
-}
-
-async function playRound(state, channel) {
-  state.round += 1;
-  const word = pickWord(state);
-  state.currentWord = word;
-  state.hintsUsed = new Set();
-  state.roundStartedAt = Date.now();
-  const message = state.roundMessage || await channel.send({ embeds: [drawEmbed(state, word, ROUND_SECONDS)], components: roundButtons(state) });
-  state.roundMessage = message;
-
-  const schedule = [];
-  for (let frame = 1; frame <= FRAME_COUNT; frame++) {
-    schedule.push((frame - 1) * FRAME_INTERVAL_MS);
-  }
-  for (const delay of schedule) {
-    const elapsed = Date.now() - state.roundStartedAt;
-    const wait = delay - elapsed;
-    if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
-    if (state.cancelled || state.finished) return false;
-    await updateRoundMessage(state, word, Math.min(FRAME_COUNT, Math.floor(delay / FRAME_INTERVAL_MS) + 1), state.roundStartedAt, message);
-  }
-
-  await new Promise(resolve => setTimeout(resolve, Math.max(0, ROUND_SECONDS * 1000 - (Date.now() - state.roundStartedAt))));
-  if (state.cancelled || state.finished) return false;
-  await message.edit({
-    embeds: [new EmbedBuilder().setTitle('⏱️ انتهت الجولة').setDescription(`ما تخمناتش الرسمة.\n\n✅ الإجابة كانت: **${word.answer}**`).setImage('attachment://guess-the-draw.png')],
-    components: [],
-  }).catch(() => {});
-  await new Promise(resolve => setTimeout(resolve, 1200));
-  return true;
-}
-
-async function runGame(state, channel) {
-  try {
-    for (let i = 0; i < ROUNDS; i++) {
-      if (state.cancelled) return;
-      const keepGoing = await playRound(state, channel);
-      if (!keepGoing) return;
-      if (state.cancelled) return;
-    }
-  } finally {
-    if (!state.finished && !state.cancelled) {
-      state.finished = true;
-      activeGames.delete(state.channelId);
-      await recordStateResults(state);
-      const summaryRows = [...state.totals.entries()].map(([userId, points]) => ({ userId, points }));
-      await channel.send({ embeds: [finishEmbed(state, summaryRows)] }).catch(() => {});
-    }
-  }
-}
-
-async function startFromState(state, channel) {
-  if (state.started || state.cancelled || state.finished) return;
-  if (state.players.length < MIN_PLAYERS) return;
-  state.started = true;
-  clearInterval(state.lobbyTicker);
-  clearTimeout(state.lobbyTimeout);
-  await state.message?.edit({ embeds: [lobbyEmbed(state, 0)], components: lobbyButtons(state, true) }).catch(() => {});
-  const mention = state.settings.startMentionRoleId ? `<@&${state.settings.startMentionRoleId}>` : '';
-  if (mention) await channel.send({ content: mention, allowedMentions: { roles: [state.settings.startMentionRoleId] } }).catch(() => {});
-  await runGame(state, channel);
-}
-
-async function createDrawLobby(source) {
-  const guildId = source.guildId;
-  const settings = getDrawSettings(guildId);
-  const state = {
-    id: 'draw',
-    key: keygen(),
-    guildId,
-    channelId: source.channelId,
-    hostId: source.user?.id || source.author?.id,
-    players: [],
-    maxPlayers: settings.maxPlayers,
-    settings,
-    started: false,
-    cancelled: false,
-    finished: false,
-    round: 0,
-    currentWord: null,
-    roundStartedAt: 0,
-    hintsUsed: new Set(),
-    usedAnswers: new Set(),
-    totals: new Map(),
-    roundWins: new Map(),
-    collectors: new Set(),
-  };
-
-  activeGames.set(state.channelId, state);
-  const total = settings.startSeconds;
-  let remaining = total;
-  const payload = {
-    content: settings.startMentionRoleId ? `<@&${settings.startMentionRoleId}>` : undefined,
-    embeds: [lobbyEmbed(state, remaining)],
-    components: lobbyButtons(state),
-    allowedMentions: settings.startMentionRoleId ? { roles: [settings.startMentionRoleId] } : { parse: [] },
-  };
-  state.message = source.isChatInputCommand?.() ? (await source.reply(payload), await source.fetchReply().catch(() => null)) : await source.channel.send(payload).catch(() => null);
-  if (!state.message) { activeGames.delete(state.channelId); return; }
-
-  state.lobbyTicker = setInterval(async () => {
-    if (state.started || state.cancelled || state.finished) return;
-    remaining -= 1;
-    await state.message.edit({ embeds: [lobbyEmbed(state, remaining)], components: lobbyButtons(state) }).catch(() => {});
-  }, 1000);
-  state.lobbyTimeout = setTimeout(() => {
-    if (state.players.length >= MIN_PLAYERS) startFromState(state, state.message.channel).catch(console.error);
-    else {
-      state.cancelled = true;
-      activeGames.delete(state.channelId);
-      clearInterval(state.lobbyTicker);
-      state.message.edit({ embeds: [lobbyEmbed(state, 0).setDescription(`${lobbyEmbed(state, 0).data.description}\n\n⏱️ انتهى الوقت قبل الوصول إلى **${MIN_PLAYERS} لاعبين**.`)], components: [] }).catch(() => {});
-    }
-  }, settings.startSeconds * 1000);
-
-  return state;
-}
-
-function findState(channelId, key) {
-  const state = activeGames.get(channelId);
-  return state && state.key === key ? state : null;
-}
-
-export async function startDrawGame(source) {
-  if (!source.guildId || !source.channelId) return false;
-  if (activeGames.has(source.channelId)) {
-    const responder = source.reply || source.channel?.send;
-    if (source.isChatInputCommand?.()) await source.reply({ content: '⚠️ كاينة لعبة أو فعالية خدامة دابا فهاد الروم.', ephemeral: true }).catch(() => {});
-    else await source.reply('⚠️ كاينة لعبة أو فعالية خدامة دابا فهاد الروم.').catch(() => {});
-    return false;
-  }
-  return createDrawLobby(source).then(() => true);
-}
-
-export async function handleDrawButton(interaction) {
-  const parts = interaction.customId.split(':');
-  if (parts[0] === 'drawlobby') {
-    const [, key, action] = parts;
-    const state = findState(interaction.channelId, key);
-    if (!state) return interaction.reply({ content: 'انتهى هذا الـLobby أو لم يعد موجوداً.', ephemeral: true }).catch(() => {});
-    if (state.started || state.cancelled || state.finished) return interaction.reply({ content: 'هاد الجولة بدات، ما بقاتش تعديلات على الـLobby.', ephemeral: true }).catch(() => {});
-
-    if (action === 'join') {
-      if (state.players.includes(interaction.user.id)) return interaction.reply({ content: '✅ راك منضم أصلاً.', ephemeral: true }).catch(() => {});
-      if (state.players.length >= state.maxPlayers) return interaction.reply({ content: '🚫 وصلنا للحد الأقصى ديال اللاعبين.', ephemeral: true }).catch(() => {});
-      state.players.push(interaction.user.id);
-      await interaction.update({ embeds: [lobbyEmbed(state, 0)], components: lobbyButtons(state) }).catch(() => {});
-      return;
-    }
-
-    if (action === 'leave') {
-      state.players = state.players.filter(id => id !== interaction.user.id);
-      return interaction.update({ embeds: [lobbyEmbed(state, 0)], components: lobbyButtons(state) }).catch(() => {});
-    }
-
-    if (action === 'start') {
-      if (interaction.user.id !== state.hostId && !interaction.member?.permissions?.has('ManageGuild') && !interaction.member?.permissions?.has('Administrator')) {
-        return interaction.reply({ content: '⛔ غير منظم الفعالية أو الإدارة يقدرو يبداوها يدوياً.', ephemeral: true }).catch(() => {});
-      }
-      if (state.players.length < MIN_PLAYERS) return interaction.reply({ content: `⚠️ خاص على الأقل ${MIN_PLAYERS} لاعبين.`, ephemeral: true }).catch(() => {});
-      await interaction.deferUpdate().catch(() => {});
-      return startFromState(state, interaction.channel);
-    }
-
-    if (action === 'cancel') {
-      if (interaction.user.id !== state.hostId && !interaction.member?.permissions?.has('ManageGuild') && !interaction.member?.permissions?.has('Administrator')) {
-        return interaction.reply({ content: '⛔ غير المنظم أو الإدارة يقدرو يلغيو الفعالية.', ephemeral: true }).catch(() => {});
-      }
-      state.cancelled = true;
-      clearInterval(state.lobbyTicker);
-      clearTimeout(state.lobbyTimeout);
-      activeGames.delete(state.channelId);
-      return interaction.update({ embeds: [new EmbedBuilder().setTitle('🛑 خمّن الرسمة تلغات').setDescription('تم إلغاء الـLobby قبل البداية.')], components: [] }).catch(() => {});
-    }
-  }
-
-  if (parts[0] !== 'draw') return false;
-  const [, key, action] = parts;
-  const state = findState(interaction.channelId, key);
-  if (!state || state.finished || state.cancelled || !state.started || !state.currentWord) return interaction.reply({ content: 'هاد الجولة سالات.', ephemeral: true }).catch(() => {});
-  if (action !== 'hint') return false;
-  if (!state.players.includes(interaction.user.id)) return interaction.reply({ content: '👥 غير اللاعبين ديال الفعالية عندهم التلميح.', ephemeral: true }).catch(() => {});
-  if (state.hintsUsed.has(interaction.user.id)) return interaction.reply({ content: '💡 استعملتي التلميح ديالك من قبل فهاد الجولة.', ephemeral: true }).catch(() => {});
-
-  state.hintsUsed.add(interaction.user.id);
-  const pattern = revealLetters(state.currentWord.answer, 2);
-  return interaction.reply({ content: `💡 التلميح ديالك (خاص بيك بوحدك):\n**${pattern}**\n\nعندك فرصة أخرى تخمن من بعد.`, ephemeral: true }).catch(() => {});
-}
-
-export async function handleDrawMessage(message) {
-  const state = findState(message.channelId, null);
-  if (!state || !state.started || state.finished || state.cancelled || !state.currentWord || message.author.bot) return false;
-  if (!state.players.includes(message.author.id)) return false;
-
-  const guess = normalize(message.content);
-  const accepted = state.currentWord.aliases.some(alias => normalize(alias) === guess);
-  if (!accepted) return false;
-
-  const elapsed = Date.now() - state.roundStartedAt;
-  const points = calculateScore(state.currentWord, elapsed);
-  state.currentWinner = message.author.id;
-  addTotals(state, message.author.id, points);
-  await message.channel.send({ embeds: [new EmbedBuilder().setTitle('🎯 إجابة صحيحة!').setDescription(`🏆 ${message.author} خمنها صح!\n\n✅ الكلمة: **${state.currentWord.answer}**\n⚡ النقاط: **+${points}**\n\nالجولة سالات مباشرة.`)] }).catch(() => {});
-  await state.roundMessage?.edit({ components: [] }).catch(() => {});
-  return true;
-}
-
-export async function stopDrawState(state) {
-  if (!state) return false;
-  state.cancelled = true;
-  state.finished = true;
-  clearInterval(state.lobbyTicker);
-  clearTimeout(state.lobbyTimeout);
-  activeGames.delete(state.channelId);
-  await recordStateResults(state);
-  return true;
-}
+const RANK={easy:1,medium:2,hard:3};
+const CAPS={easy:140,medium:220,hard:300};
+const DN={easy:'سهل',medium:'متوسط',hard:'صعب'};
+const rand=max=>Math.floor(Math.random()*max);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const keygen=()=>Math.random().toString(36).slice(2,10);
+
+function normalize(v){return String(v||'').normalize('NFKC').replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g,'').replace(/ـ/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[\s_\-]+/g,'').replace(/[^\p{L}\p{N}]/gu,'').toLowerCase();}
+function pickWord(state){const pool=WORDS.filter(w=>RANK[w[2]]<=RANK[state.settings.difficulty]);const available=pool.filter(w=>!state.usedAnswers.has(w[0]));const w=(available.length?available:pool)[rand((available.length?available:pool).length)];return {answer:w[0],aliases:w[1].split('|'),difficulty:w[2],draw:w[3]};}
+function hidden(answer,revealed=new Set()){return [...answer].map((c,i)=>/[\u0600-\u06FF\u0041-\u007A]/.test(c)?(revealed.has(i)?c:'＿'):c).join(' ');}
+function revealTwo(answer){const ids=[...answer].map((c,i)=>/[\u0600-\u06FF\u0041-\u007A]/.test(c)?i:-1).filter(i=>i>=0).sort(()=>Math.random()-.5);return new Set(ids.slice(0,Math.min(2,ids.length)));}
+
+function lobbyEmbed(s,remaining){return new EmbedBuilder().setTitle('🎨 خمّن الرسمة').setDescription([s.settings.startMessage||'شوف الرسمة، ركز فالتفاصيل، وحاول تكون أول واحد يخمنها!','',`👥 اللاعبون: **${s.players.length}/${s.settings.maxPlayers}**`,`✅ الحد الأدنى: **${MIN_PLAYERS}**`,`⏱️ البداية بعد: **${Math.max(0,Math.ceil(remaining))}ث**`,`🧩 الصعوبة: **${DN[s.settings.difficulty]}**`,`🎞️ الرسم: **${s.settings.animated?'متدرج':'صور متدرجة'}**`,'','💡 كل لاعب عندو تلميح واحد فكل جولة، والتلميح كيبان ليه بوحده.'].join('\n')).setFooter({text:'10 جولات • أول جواب صحيح كيربح الجولة'});}
+function lobbyButtons(s,disabled=false){return [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`drawlobby:${s.key}:join`).setLabel('انضمام').setEmoji('🎮').setStyle(ButtonStyle.Primary).setDisabled(disabled),new ButtonBuilder().setCustomId(`drawlobby:${s.key}:start`).setLabel('بدء').setEmoji('▶️').setStyle(ButtonStyle.Success).setDisabled(disabled),new ButtonBuilder().setCustomId(`drawlobby:${s.key}:cancel`).setLabel('إلغاء').setEmoji('✖️').setStyle(ButtonStyle.Danger).setDisabled(disabled))];}
+function roundButtons(s){return [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`draw:${s.key}:hint`).setLabel('تلميح').setEmoji('💡').setStyle(ButtonStyle.Secondary))];}
+function roundEmbed(s,w,remaining){return new EmbedBuilder().setTitle('🎨 خمّن الرسمة').setDescription([`**الجولة ${s.round} / ${ROUNDS}**`,`⏱️ باقي: **${Math.max(0,Math.ceil(remaining))}ث**`,'',`الكلمة: **${hidden(w.answer,s.revealed)}**`,'','🖼️ ركز فالتفاصيل ديال الصورة وخمن فالشات.','💡 عندك تلميح واحد فقط فهاد الجولة.'].join('\n')).setFooter({text:'التخمينات الخاطئة ما عليها حتى عقوبة'});}
+function finishEmbed(s){const r=[...s.totals.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10);const lines=r.length?r.map(([id,p],i)=>`**${i+1}.** <@${id}> — **${p}** نقطة • ${s.wins.get(id)||0} جولات`).join('\n'):'ما كاين حتى فائز.';return new EmbedBuilder().setTitle('🏁 خمّن الرسمة انتهات').setDescription(['تم لعب **10 جولات**.','','🏆 **الترتيب النهائي**',lines,'',r.length?`👑 البطل: <@${r[0][0]}>`:'😅 ما ربح حتى واحد.'].join('\n'));}
+
+function baseCanvas(){const image=PImage.make(760,480),c=image.getContext('2d');c.fillStyle='#f7f3ea';c.fillRect(0,0,760,480);c.strokeStyle='#263238';c.fillStyle='#263238';c.lineWidth=8;c.lineCap='round';c.lineJoin='round';return {image,c};}
+function line(c,x1,y1,x2,y2,w=8){c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.lineWidth=w;c.stroke();}
+function circle(c,x,y,r,fill=null){c.beginPath();c.arc(x,y,r,0,Math.PI*2);if(fill){c.fillStyle=fill;c.fill();}c.stroke();}
+function rect(c,x,y,w,h,fill=null,r=0){c.beginPath();if(r&&c.roundRect)c.roundRect(x,y,w,h,r);else c.rect(x,y,w,h);if(fill){c.fillStyle=fill;c.fill();}c.stroke();}
+
+function scene(type,f,c){const ground=()=>{if(f>=5)line(c,100,390,660,390,6);};switch(type){
+case'sun':circle(c,380,205,f>=2?65:45,'#ffd54f');if(f>=2)for(let i=0;i<8;i++){const a=i*Math.PI/4;line(c,380+Math.cos(a)*90,205+Math.sin(a)*90,380+Math.cos(a)*120,205+Math.sin(a)*120,6);}if(f>=4){circle(c,360,190,5,'#263238');circle(c,400,190,5,'#263238');}ground();break;
+case'moon':circle(c,380,210,85,'#ffe082');if(f>=3){circle(c,350,180,12,'#e0b95b');circle(c,410,230,9,'#e0b95b');}if(f>=5)for(let i=0;i<7;i++)circle(c,120+i*80,90+(i%2)*40,4,'#263238');break;
+case'star':{const p=[];for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?38:88;p.push([380+Math.cos(a)*r,220+Math.sin(a)*r]);}c.beginPath();c.moveTo(...p[0]);for(const q of p.slice(1))c.lineTo(...q);c.closePath();c.fillStyle='#ffd54f';c.fill();c.stroke();break;}
+case'cloud':circle(c,330,220,55,'#e3f2fd');circle(c,395,190,75,'#e3f2fd');circle(c,465,225,55,'#e3f2fd');line(c,270,275,520,275,8);if(f>=4)for(let x=300;x<520;x+=55)line(c,x,310,x-12,350,5);break;
+case'cat':circle(c,380,240,105,'#ffcc80');c.beginPath();c.moveTo(305,175);c.lineTo(325,105);c.lineTo(365,155);c.stroke();c.beginPath();c.moveTo(395,155);c.lineTo(440,105);c.lineTo(455,175);c.stroke();if(f>=2){circle(c,345,225,7,'#263238');circle(c,415,225,7,'#263238');}if(f>=3)circle(c,380,258,10,'#ef9a9a');if(f>=4){line(c,330,260,275,250,4);line(c,330,275,270,280,4);line(c,430,260,485,250,4);line(c,430,275,490,280,4);}break;
+case'dog':circle(c,380,235,100,'#bc8f6f');if(f>=2){circle(c,345,220,7,'#263238');circle(c,415,220,7,'#263238');circle(c,380,255,13,'#263238');}c.beginPath();c.moveTo(310,170);c.lineTo(260,125);c.lineTo(300,250);c.stroke();c.beginPath();c.moveTo(450,170);c.lineTo(500,125);c.lineTo(460,250);c.stroke();ground();break;
+case'fish':c.beginPath();c.ellipse(380,240,130,75,0,0,Math.PI*2);c.fillStyle='#80deea';c.fill();c.stroke();c.beginPath();c.moveTo(250,240);c.lineTo(175,180);c.lineTo(175,300);c.closePath();c.fillStyle='#4dd0e1';c.fill();c.stroke();circle(c,435,220,7,'#263238');if(f>=4)for(let x=300;x<410;x+=35)line(c,x,210,x-10,270,4);break;
+case'bird':circle(c,380,235,65,'#90caf9');if(f>=2){circle(c,405,215,6,'#263238');line(c,440,235,470,225,5);}if(f>=4){line(c,310,210,270,165,6);line(c,450,210,490,165,6);}break;
+case'house':rect(c,270,210,220,160,'#ffcc80',10);c.beginPath();c.moveTo(245,215);c.lineTo(380,105);c.lineTo(515,215);c.closePath();c.fillStyle='#ef5350';c.fill();c.stroke();if(f>=2)rect(c,350,275,60,95,'#8d6e63');if(f>=3){rect(c,295,245,45,45,'#90caf9');rect(c,420,245,45,45,'#90caf9');}if(f>=5){line(c,130,390,630,390,6);circle(c,585,100,35,'#ffd54f');}break;
+case'tree':rect(c,350,250,60,130,'#8d6e63');circle(c,380,190,115,'#66bb6a');if(f>=3){circle(c,320,135,45,'#81c784');circle(c,440,140,45,'#81c784');}ground();break;
+case'flower':line(c,380,240,380,380,7);for(let i=0;i<6;i++){const a=i*Math.PI/3;circle(c,380+Math.cos(a)*42,200+Math.sin(a)*42,32,'#ef9a9a');}circle(c,380,200,28,'#ffd54f');break;
+case'apple':circle(c,380,250,90,'#ef5350');if(f>=2){line(c,380,165,395,125,6);line(c,395,135,430,125,5);}break;
+case'ball':circle(c,380,245,105,'#90caf9');if(f>=2){line(c,280,245,480,245,5);c.beginPath();c.arc(380,245,105,0,Math.PI);c.stroke();}break;
+case'book':rect(c,270,180,220,170,'#42a5f5',8,10);line(c,380,185,380,345,6);if(f>=3){line(c,300,220,350,220,4);line(c,410,220,460,220,4);line(c,300,250,350,250,4);line(c,410,250,460,250,4);}break;
+case'cup':rect(c,320,200,120,145,'#fff59d',8,20);c.beginPath();c.arc(440,250,45,-Math.PI/2,Math.PI/2);c.stroke();break;
+case'key':circle(c,310,245,48);line(c,350,245,500,245,9);if(f>=3){line(c,455,245,455,285,8);line(c,490,245,490,275,8);}break;
+case'heart':c.beginPath();c.moveTo(380,350);c.bezierCurveTo(180,220,250,120,380,190);c.bezierCurveTo(510,120,580,220,380,350);c.fillStyle='#ef5350';c.fill();c.stroke();break;
+case'glasses':circle(c,315,240,55);circle(c,445,240,55);line(c,370,235,390,235,6);if(f>=3){line(c,260,225,225,205,5);line(c,500,225,535,205,5);}break;
+case'umbrella':c.beginPath();c.arc(380,230,130,Math.PI,Math.PI*2);c.fillStyle='#81d4fa';c.fill();c.stroke();line(c,380,230,380,365,8);if(f>=3){c.beginPath();c.arc(380,360,30,0,Math.PI);c.stroke();}break;
+case'candle':rect(c,350,180,60,170,'#fff59d',8,8);circle(c,380,160,28,'#ff9800');line(c,380,135,380,115,5);break;
+case'car':rect(c,230,255,300,100,'#ef5350',8,18);c.beginPath();c.moveTo(290,255);c.lineTo(330,190);c.lineTo(445,190);c.lineTo(485,255);c.closePath();c.fillStyle='#ef5350';c.fill();c.stroke();circle(c,290,360,35,'#263238');circle(c,470,360,35,'#263238');if(f>=4){rect(c,345,205,45,42,'#90caf9');rect(c,400,205,45,42,'#90caf9');}break;
+case'bike':circle(c,290,330,55);circle(c,470,330,55);line(c,290,330,360,245,6);line(c,360,245,470,330,6);line(c,290,330,470,330,6);line(c,360,245,335,205,6);break;
+case'plane':c.beginPath();c.moveTo(170,245);c.lineTo(590,245);c.lineTo(470,215);c.lineTo(420,135);c.lineTo(390,215);c.lineTo(300,190);c.lineTo(335,240);c.lineTo(300,300);c.lineTo(390,270);c.lineTo(420,350);c.lineTo(470,270);c.closePath();c.fillStyle='#e0e0e0';c.fill();c.stroke();break;
+case'train':rect(c,220,200,320,150,'#90caf9',8,12);circle(c,280,350,35,'#263238');circle(c,480,350,35,'#263238');for(let x=260;x<500;x+=65)rect(c,x,230,45,45,'#e3f2fd',5);line(c,130,390,630,390,6);break;
+case'ship':c.beginPath();c.moveTo(200,300);c.lineTo(560,300);c.lineTo(500,370);c.lineTo(270,370);c.closePath();c.fillStyle='#42a5f5';c.fill();c.stroke();line(c,380,300,380,140,7);c.beginPath();c.moveTo(380,145);c.lineTo(500,260);c.lineTo(380,260);c.closePath();c.fillStyle='#fff';c.fill();c.stroke();break;
+case'pizza':circle(c,380,250,125,'#ffcc80');if(f>=2){circle(c,330,215,12,'#ef5350');circle(c,425,220,12,'#ef5350');circle(c,380,290,12,'#ef5350');}break;
+case'cake':rect(c,270,260,220,90,'#f48fb1',8,12);rect(c,300,215,160,55,'#fff',8,10);if(f>=3)for(let x=320;x<450;x+=45){line(c,x,215,x,175,5);circle(c,x,165,10,'#ff7043');}break;
+case'camera':rect(c,270,200,220,145,'#78909c',8,15);circle(c,380,270,55,'#90caf9');rect(c,315,175,75,25,'#607d8b',5,6);break;
+case'clock':circle(c,380,245,110,'#fff');line(c,380,245,380,175,7);line(c,380,245,430,275,7);break;
+case'phone':rect(c,315,145,130,230,'#455a64',8,20);rect(c,335,180,90,145,'#90caf9',5,8);circle(c,380,350,10,'#eceff1');break;
+case'computer':rect(c,245,150,270,180,'#90a4ae',8,10);rect(c,270,175,220,125,'#90caf9',5);line(c,380,330,380,370,8);line(c,320,375,440,375,8);break;
+case'robot':rect(c,300,150,160,150,'#b0bec5',8,20);rect(c,320,300,120,90,'#90a4ae',8,12);line(c,380,120,380,150,6);circle(c,380,110,10,'#ef5350');circle(c,345,220,12,'#263238');circle(c,415,220,12,'#263238');if(f>=4){line(c,300,320,250,350,7);line(c,460,320,510,350,7);}break;
+case'balloon':line(c,380,285,380,390,4);c.beginPath();c.moveTo(380,290);c.bezierCurveTo(260,250,280,100,380,120);c.bezierCurveTo(480,100,500,250,380,290);c.fillStyle='#ef5350';c.fill();c.stroke();break;
+case'helicopter':circle(c,360,260,70,'#81c784');rect(c,410,220,110,65,'#a5d6a7',8,25);line(c,360,190,360,125,7);line(c,280,125,440,125,7);line(c,300,330,470,330,7);break;
+case'rocket':c.beginPath();c.moveTo(380,110);c.bezierCurveTo(300,180,300,300,380,350);c.bezierCurveTo(460,300,460,180,380,110);c.fillStyle='#e0e0e0';c.fill();c.stroke();circle(c,380,210,25,'#90caf9');if(f>=5){c.beginPath();c.moveTo(350,345);c.lineTo(380,420);c.lineTo(410,345);c.fillStyle='#ff9800';c.fill();c.stroke();}break;
+case'hammer':line(c,330,330,440,170,14);rect(c,290,130,150,55,'#90a4ae',8,8);break;
+case'guitar':circle(c,380,285,60,'#ffb74d');circle(c,380,205,42,'#ffb74d');line(c,380,165,380,90,9);for(let i=-2;i<=2;i++)line(c,370+i*5,90,370+i*5,285,2);break;
+case'crown':c.beginPath();c.moveTo(270,290);c.lineTo(300,150);c.lineTo(350,220);c.lineTo(380,135);c.lineTo(410,220);c.lineTo(460,150);c.lineTo(490,290);c.closePath();c.fillStyle='#ffd54f';c.fill();c.stroke();break;
+case'volcano':c.beginPath();c.moveTo(180,380);c.lineTo(300,180);c.lineTo(460,180);c.lineTo(580,380);c.closePath();c.fillStyle='#8d6e63';c.fill();c.stroke();if(f>=3){line(c,345,185,380,100,6);line(c,420,185,380,100,6);}break;
+case'rainbow':{const cs=['#ef5350','#ffca28','#66bb6a','#42a5f5','#ab47bc'];for(let i=0;i<cs.length;i++){c.beginPath();c.strokeStyle=cs[i];c.lineWidth=18;c.arc(380,330,150-i*20,Math.PI,Math.PI*2);c.stroke();}break;}
+case'castle':rect(c,270,220,220,160,'#b0bec5',8);rect(c,250,170,55,210,'#90a4ae',8);rect(c,455,170,55,210,'#90a4ae',8);if(f>=3){rect(c,350,290,60,90,'#5d4037');for(let x=275;x<490;x+=35)rect(c,x,235,20,30,'#90caf9',3);}break;
+case'galaxy':circle(c,380,240,130,'#3949ab');for(let i=0;i<18;i++)circle(c,180+rand(400),110+rand(260),rand(4)+2,'#fff');break;
+case'microphone':circle(c,380,200,55,'#90a4ae');line(c,380,255,380,355,8);line(c,330,355,430,355,8);break;
+case'magnet':c.beginPath();c.arc(380,240,110,0,Math.PI);c.stroke();line(c,270,240,270,145,14);line(c,490,240,490,145,14);break;
+case'compass':circle(c,380,245,110,'#fff');line(c,315,310,445,180,8);line(c,315,180,445,310,5);circle(c,380,245,12,'#ef5350');break;
+case'airship':c.beginPath();c.ellipse(380,200,150,75,0,0,Math.PI*2);c.fillStyle='#ef9a9a';c.fill();c.stroke();if(f>=3){line(c,330,265,330,310,5);line(c,430,265,430,310,5);rect(c,315,305,130,55,'#8d6e63',8,8);}break;
+case'lamp':line(c,380,150,380,360,9);c.beginPath();c.moveTo(320,150);c.lineTo(440,150);c.lineTo(415,230);c.lineTo(345,230);c.closePath();c.fillStyle='#fff59d';c.fill();c.stroke();line(c,320,370,440,370,8);break;
+default:scene('sun',f,c);}}
+
+async function render(word,frame){const {image,c}=baseCanvas();scene(word.draw,frame,c);const stream=new PassThrough(),chunks=[];stream.on('data',x=>chunks.push(x));const done=new Promise((resolve,reject)=>{stream.once('end',resolve);stream.once('error',reject);});await PImage.encodePNGToStream(image,stream);await done;return Buffer.concat(chunks);}
+function score(word,left,hint){const speed=Math.max(0,Math.min(1,left/ROUND_SECONDS));return Math.max(10,Math.round(CAPS[word.difficulty]*(0.45+0.55*speed)*(hint?0.75:1)));}
+
+async function finish(state,channel){if(state.finished)return;state.finished=true;clearTimeout(state.timeout);activeGames.delete(state.channelId);for(const id of state.players)recordResult(state.guildId,id,state.wins.get(id)||0,state.totals.get(id)||0);await channel?.send({embeds:[finishEmbed(state)]}).catch(()=>{});}
+async function playRound(state,channel){if(state.finished)return;if(state.round>ROUNDS)return finish(state,channel);const word=pickWord(state);state.currentWord=word;state.revealed=new Set();state.hintsUsed=new Set();state.roundStartedAt=Date.now();const msg=await channel.send({embeds:[roundEmbed(state,word,ROUND_SECONDS)],components:roundButtons(state)}).catch(()=>null);state.message=msg;if(!msg)return finish(state,channel);for(let frame=1;frame<=FRAME_COUNT&&!state.finished&&state.currentWord===word;frame++){const image=await render(word,frame);const left=ROUND_SECONDS-(frame-1)*FRAME_MS/1000;await msg.edit({embeds:[roundEmbed(state,word,left)],files:[new AttachmentBuilder(image,{name:`draw-${state.key}-${state.round}-${frame}.png`})],components:roundButtons(state)}).catch(()=>{});await sleep(FRAME_MS);}if(state.finished||state.currentWord!==word)return;await msg.edit({embeds:[roundEmbed(state,word,0).setDescription(`${roundEmbed(state,word,0).data.description}\n\n⏰ **انتهى الوقت!**\nالإجابة كانت: **${word.answer}**`)],components:[]}).catch(()=>{});state.currentWord=null;state.round++;await sleep(1800);return playRound(state,channel);}
+async function startState(state,channel){state.started=true;clearTimeout(state.timeout);await state.lobbyMessage?.edit({components:lobbyButtons(state,true)}).catch(()=>{});await channel.send({content:state.settings.startMentionRoleId?`<@&${state.settings.startMentionRoleId}>`:undefined,embeds:[new EmbedBuilder().setTitle('🚀 اللعبة بدأت!').setDescription('استعدو… أول رسمة غادي تبان دابا!')]}).catch(()=>{});state.round=1;return playRound(state,channel);}
+
+export async function startDrawGame(source){const guildId=source.guildId,channel=source.channel;if(!guildId||!channel)return false;if(activeGames.has(channel.id)){const text='⚠️ كاينة لعبة أو فعالية خدامة دابا فهاد الروم.';if(source.isChatInputCommand?.())await source.reply({content:text,ephemeral:true}).catch(()=>{});else await source.reply(text).catch(()=>{});return false;}const settings=getDrawSettings(guildId);const state={id:'draw',key:keygen(),guildId,channelId:channel.id,hostId:source.user?.id||source.author?.id,players:[],settings,started:false,finished:false,round:0,currentWord:null,usedAnswers:new Set(),hintsUsed:new Set(),totals:new Map(),wins:new Map()};activeGames.set(channel.id,state);const lobby=await channel.send({embeds:[lobbyEmbed(state,settings.startSeconds)],components:lobbyButtons(state)}).catch(()=>null);if(!lobby){activeGames.delete(channel.id);return false;}state.lobbyMessage=lobby;if(source.isChatInputCommand?.())await source.reply({content:'✅ تم إنشاء Lobby ديال خمّن الرسمة.',ephemeral:true}).catch(()=>{});state.timeout=setTimeout(async()=>{if(state.players.length<MIN_PLAYERS){state.finished=true;activeGames.delete(channel.id);await lobby.edit({embeds:[lobbyEmbed(state,0).setDescription(`${lobbyEmbed(state,0).data.description}\n\n⏰ انتهى الوقت قبل ما يوصل الحد الأدنى (**${MIN_PLAYERS}** لاعبين).`)],components:[]}).catch(()=>{});return;}await startState(state,channel);},settings.startSeconds*1000);return true;}
+
+export async function handleDrawButton(interaction){const [type,key,action]=interaction.customId.split(':');const state=activeGames.get(interaction.channelId);if(!state||state.id!=='draw'||state.key!==key||state.finished)return interaction.reply({content:'⚠️ هاد الجولة سالات أو ما بقاتش موجودة.',ephemeral:true}).catch(()=>{});if(type==='drawlobby'){if(action==='join'){if(state.started)return interaction.reply({content:'الجولة بدات، ما بقاش ممكن تدخل.',ephemeral:true});if(state.players.includes(interaction.user.id))return interaction.reply({content:'راك داخل من قبل.',ephemeral:true});if(state.players.length>=state.settings.maxPlayers)return interaction.reply({content:'الفعالية عامرة.',ephemeral:true});state.players.push(interaction.user.id);state.totals.set(interaction.user.id,0);state.wins.set(interaction.user.id,0);await interaction.update({embeds:[lobbyEmbed(state,Math.max(0,(state.settings.startSeconds*1000-(Date.now()-state.lobbyMessage.createdTimestamp))/1000))],components:lobbyButtons(state)});if(state.players.length>=state.settings.maxPlayers)await startState(state,interaction.channel);return;}if(action==='start'){if(interaction.user.id!==state.hostId&&!interaction.member.permissions?.has('ManageGuild')&&!interaction.member.permissions?.has('Administrator'))return interaction.reply({content:'⛔ غير المنظم أو الإدارة يقدرو يبداو الفعالية.',ephemeral:true});if(state.players.length<MIN_PLAYERS)return interaction.reply({content:`خاص على الأقل ${MIN_PLAYERS} لاعبين.`,ephemeral:true});await interaction.update({embeds:[lobbyEmbed(state,0)],components:lobbyButtons(state,true)});return startState(state,interaction.channel);}if(action==='cancel'){if(interaction.user.id!==state.hostId&&!interaction.member.permissions?.has('ManageGuild')&&!interaction.member.permissions?.has('Administrator'))return interaction.reply({content:'⛔ غير المنظم أو الإدارة يقدرو يلغيو الفعالية.',ephemeral:true});state.finished=true;clearTimeout(state.timeout);activeGames.delete(state.channelId);return interaction.update({embeds:[new EmbedBuilder().setTitle('🛑 خمّن الرسمة تلغات').setDescription('تم إلغاء الـLobby.')],components:[]});}}
+if(type==='draw'&&action==='hint'){if(!state.started||!state.currentWord)return interaction.reply({content:'ما كايناش جولة نشطة دابا.',ephemeral:true});if(!state.players.includes(interaction.user.id))return interaction.reply({content:'خاصك تكون مشارك فالفعالية باش تستعمل التلميح.',ephemeral:true});if(state.hintsUsed.has(interaction.user.id))return interaction.reply({content:'💡 استعملتي التلميح ديالك فهاد الجولة من قبل.',ephemeral:true});state.hintsUsed.add(interaction.user.id);const reveal=revealTwo(state.currentWord.answer);return interaction.reply({content:`💡 التلميح ديالك: **${hidden(state.currentWord.answer,reveal)}**`,ephemeral:true});}}
+
+export async function handleDrawMessage(message){const state=activeGames.get(message.channelId);if(!state||state.id!=='draw'||!state.started||!state.currentWord||message.author.bot)return false;if(!state.players.includes(message.author.id))return false;const guess=normalize(message.content);if(!guess)return false;if(!state.currentWord.aliases.map(normalize).includes(guess))return false;const left=Math.max(0,ROUND_SECONDS-(Date.now()-state.roundStartedAt)/1000);const used=state.hintsUsed.has(message.author.id);const points=score(state.currentWord,left,used);const answer=state.currentWord.answer;state.currentWord=null;state.totals.set(message.author.id,(state.totals.get(message.author.id)||0)+points);state.wins.set(message.author.id,(state.wins.get(message.author.id)||0)+1);await state.message?.edit({embeds:[new EmbedBuilder().setTitle('🎯 إجابة صحيحة!').setDescription(`🏆 <@${message.author.id}> عرفها قبل الجميع!\n\n✅ الإجابة: **${answer}**\n⚡ السرعة: **${left.toFixed(1)}ث**\n💡 التلميح: **${used?'مستعمل':'ما مستعملش'}**\n🎖️ نقاط الجولة: **+${points}**`)],components:[]}).catch(()=>{});await message.react('🎯').catch(()=>{});state.round++;await sleep(1800);if(!state.finished)await playRound(state,message.channel);return true;}
+
+export async function stopDrawState(state){if(!state||state.id!=='draw')return false;state.finished=true;clearTimeout(state.timeout);activeGames.delete(state.channelId);state.currentWord=null;await state.lobbyMessage?.edit({components:[]}).catch(()=>{});await state.message?.edit({components:[]}).catch(()=>{});for(const id of state.players)recordResult(state.guildId,id,state.wins.get(id)||0,state.totals.get(id)||0);return true;}
