@@ -18,8 +18,8 @@ import {
   canRunGroup,
   cancelActiveGame,
 } from './games-engine.js';
-import { handleDrawMessage, handleDrawButton, startDrawGame } from './draw-game.js';
-import { initDatabase, getGuildSettings, setGuildSettings, getPlayerStats, getLeaderboard, getDrawSettings, setDrawSettings } from './store.js';
+import { handleDrawMessage, handleDrawButton, startDrawGame, stopDrawState } from './draw-game.js';
+import { initDatabase, getGuildSettings, setGuildSettings, getPlayerStats, getLeaderboard, setDrawSettings } from './store.js';
 
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
@@ -178,12 +178,42 @@ async function handleLeaderboardCommand(interaction) {
   return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🏆 ترتيب الألعاب').setDescription(lines)] });
 }
 
+async function startDrawSafely(source) {
+  if (!canRunGroup(source.member, getGuildSettings(source.guildId))) {
+    if (source.isChatInputCommand?.()) await source.reply({ content: '⛔ غير الإدارة أو رئيس الفعاليات يقدرو يبداو فعالية خمّن الرسمة.', ephemeral: true }).catch(() => {});
+    else await source.reply('⛔ غير الإدارة أو رئيس الفعاليات يقدرو يبداو فعالية خمّن الرسمة.').catch(() => {});
+    return false;
+  }
+  return startDrawGame(source);
+}
+
+async function stopCurrentGame(interaction) {
+  const state = activeGames.get(interaction.channelId);
+  if (!state) {
+    await interaction.reply({ content: 'ℹ️ لا توجد لعبة نشطة في هذه القناة.', ephemeral: true }).catch(() => {});
+    return false;
+  }
+  if (!canRunGroup(interaction.member, getGuildSettings(interaction.guildId))) {
+    await interaction.reply({ content: '⛔ غير مسموح لك بإيقاف اللعبة.', ephemeral: true }).catch(() => {});
+    return false;
+  }
+  if (state.id === 'draw') {
+    await stopDrawState(state);
+    await interaction.reply({ content: '✅ تم إيقاف فعالية خمّن الرسمة.', ephemeral: true }).catch(() => {});
+    await state.message?.channel?.send({ embeds: [new EmbedBuilder().setTitle('🛑 خمّن الرسمة توقفت').setDescription('تم إيقاف الفعالية من طرف الإدارة أو رئيس الفعاليات.')] }).catch(() => {});
+    return true;
+  }
+  const stopped = await cancelActiveGame(interaction.channelId);
+  await interaction.reply({ content: stopped ? '✅ تم إيقاف اللعبة الحالية.' : 'ℹ️ لا توجد لعبة نشطة في هذه القناة.', ephemeral: true }).catch(() => {});
+  return stopped;
+}
+
 client.on('interactionCreate', async interaction => {
   try {
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName === 'لعب') {
         const game = interaction.options.getString('اللعبة', true);
-        if (game === 'draw') await startDrawGame(interaction);
+        if (game === 'draw') await startDrawSafely(interaction);
         else await handleGameCommand(interaction, game);
       } else if (interaction.commandName === 'إعدادات-الألعاب') {
         await handleSettingsCommand(interaction);
@@ -194,13 +224,7 @@ client.on('interactionCreate', async interaction => {
       } else if (interaction.commandName === 'ترتيب-الألعاب') {
         await handleLeaderboardCommand(interaction);
       } else if (interaction.commandName === 'إيقاف-اللعبة') {
-        const allowed = canRunGroup(interaction.member, getGuildSettings(interaction.guildId));
-        if (!allowed) {
-          await interaction.reply({ content: '⛔ غير مسموح لك بإيقاف اللعبة.', ephemeral: true });
-          return;
-        }
-        const stopped = await cancelActiveGame(interaction.channelId);
-        await interaction.reply({ content: stopped ? '✅ تم إيقاف اللعبة الحالية.' : 'ℹ️ لا توجد لعبة نشطة في هذه القناة.', ephemeral: true });
+        await stopCurrentGame(interaction);
       }
       return;
     }
@@ -226,13 +250,27 @@ client.on('interactionCreate', async interaction => {
 client.on('messageCreate', async message => {
   if (!message.guild || message.author.bot) return;
   const command = message.content.trim().split(/\s+/)[0];
-  if (!command.startsWith('.') && !command.startsWith('-')) {
-    await handleDrawMessage(message).catch(error => console.error('[draw]', error));
+
+  if (command === '-رسمة') {
+    await startDrawSafely(message);
     return;
   }
+
+  const drawState = activeGames.get(message.channelId);
+  if (drawState?.id === 'draw' && command === '-توقيف') {
+    if (!canRunGroup(message.member, getGuildSettings(message.guildId))) {
+      await message.reply('⛔ غير الإدارة أو رئيس الفعاليات يقدرو يوقفو الفعالية.').catch(() => {});
+      return;
+    }
+    await stopDrawState(drawState);
+    await message.reply('✅ تم إيقاف فعالية خمّن الرسمة.').catch(() => {});
+    await message.channel.send({ embeds: [new EmbedBuilder().setTitle('🛑 خمّن الرسمة توقفت').setDescription('تم إيقاف الفعالية من طرف الإدارة أو رئيس الفعاليات.')] }).catch(() => {});
+    return;
+  }
+
   try {
-    if (command === '-رسمة') {
-      await startDrawGame(message);
+    if (!command.startsWith('.') && !command.startsWith('-')) {
+      await handleDrawMessage(message).catch(error => console.error('[draw]', error));
       return;
     }
     const handledDrawGuess = await handleDrawMessage(message);
