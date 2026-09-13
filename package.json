@@ -1,18 +1,20 @@
 {
   "name": "games-discord-bot",
-  "version": "1.0.0",
-  "description": "بوت ألعاب ديسكورد احترافي باللغة العربية الفصحى",
+  "version": "1.1.0",
+  "description": "بوت ألعاب ديسكورد احترافي باللغة العربية",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "check": "node --check src/index.js && node --check src/games-engine.js && node --check src/draw-game.js && node --check src/store.js"
   },
   "engines": { "node": ">=20.0.0" },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
     "discord.js": "^14.22.1",
     "dotenv": "^16.6.1",
+    "pureimage": "^0.4.18",
     "undici": "^7.16.0"
   }
 }
