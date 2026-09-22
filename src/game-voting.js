@@ -71,7 +71,7 @@ export class GameVoting {
     const sent = await message.channel.send({ embeds: [embed()], components: [menu()] }).catch(() => null);
     if (!sent) return true;
 
-    const session = { voteKey, channelId: message.channelId, guildId: message.guildId, message: sent, votes, games, embed, menu };
+    const session = { voteKey, channelId: message.channelId, guildId: message.guildId, source: message, message: sent, votes, games, embed, menu };
     this.sessions.set(key, session);
 
     session.timer = setTimeout(async () => {
@@ -123,12 +123,6 @@ export class GameVoting {
       `🗳️ انتهى التصويت باختيار **${GAME_NAMES[winner]}**. غادي تبدا الفعالية دابا.`,
     ).catch(() => {});
 
-    const source = session.message;
-    await startGroupGame({
-      ...source,
-      member: source.guild?.members?.cache?.get(session.message.author?.id),
-      channelId: session.channelId,
-      guildId: session.guildId,
-    }, winner);
+    await startGroupGame(session.source, winner);
   }
 }
