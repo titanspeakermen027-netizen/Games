@@ -25,7 +25,14 @@ db.exec(`
     winner_points INTEGER NOT NULL DEFAULT 10,
     max_players INTEGER NOT NULL DEFAULT 20,
     lobby_seconds INTEGER NOT NULL DEFAULT 30,
+    individual_game_channel_id TEXT,
     updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+
+  CREATE TABLE IF NOT EXISTS game_channels (
+    guild_id TEXT NOT NULL,
+    channel_id TEXT NOT NULL,
+    PRIMARY KEY (guild_id, channel_id)
   );
 
   CREATE TABLE IF NOT EXISTS draw_settings (
