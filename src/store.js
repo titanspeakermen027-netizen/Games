@@ -47,6 +47,10 @@ db.exec(`
   );
 `);
 
+const settingsColumns = db.prepare('PRAGMA table_info(guild_settings)').all();
+if (!settingsColumns.some(column => column.name === 'individual_game_channel_id')) {
+  db.exec('ALTER TABLE guild_settings ADD COLUMN individual_game_channel_id TEXT');
+}
 const ensurePlayer = db.prepare(`
   INSERT INTO player_stats (guild_id, user_id) VALUES (?, ?)
   ON CONFLICT(guild_id, user_id) DO NOTHING
@@ -69,6 +73,7 @@ const defaultSettings = {
   winnerPoints: 10,
   maxPlayers: 20,
   lobbySeconds: 30,
+  individualGameChannelId: null,
 };
 
 const defaultDrawSettings = {
@@ -94,7 +99,8 @@ export function getGuildSettings(guildId) {
     SELECT event_role_id AS eventRoleId,
            winner_points AS winnerPoints,
            max_players AS maxPlayers,
-           lobby_seconds AS lobbySeconds
+           lobby_seconds AS lobbySeconds,
+           individual_game_channel_id AS individualGameChannelId
     FROM guild_settings
     WHERE guild_id = ?
   `).get(guildId);
@@ -109,6 +115,7 @@ export function getGuildSettings(guildId) {
     winnerPoints: Number(row.winnerPoints) || 10,
     maxPlayers: Math.min(20, Math.max(2, Number(row.maxPlayers) || 20)),
     lobbySeconds: Math.min(120, Math.max(10, Number(row.lobbySeconds) || 30)),
+    individualGameChannelId: row.individualGameChannelId || null,
   };
 }
 
@@ -123,15 +130,16 @@ export function setGuildSettings(guildId, patch = {}) {
   };
 
   db.prepare(`
-    INSERT INTO guild_settings (guild_id, event_role_id, winner_points, max_players, lobby_seconds, updated_at)
-    VALUES (?, ?, ?, ?, ?, unixepoch())
+    INSERT INTO guild_settings (guild_id, event_role_id, winner_points, max_players, lobby_seconds, individual_game_channel_id, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, unixepoch())
     ON CONFLICT(guild_id) DO UPDATE SET
       event_role_id = excluded.event_role_id,
       winner_points = excluded.winner_points,
       max_players = excluded.max_players,
       lobby_seconds = excluded.lobby_seconds,
+      individual_game_channel_id = excluded.individual_game_channel_id,
       updated_at = unixepoch()
-  `).run(guildId, next.eventRoleId, next.winnerPoints, next.maxPlayers, next.lobbySeconds);
+  `).run(guildId, next.eventRoleId, next.winnerPoints, next.maxPlayers, next.lobbySeconds, next.individualGameChannelId);
 
   return next;
 }
@@ -236,4 +244,28 @@ export function getLeaderboard(guildId, limit = 10) {
     ORDER BY points DESC, wins DESC, games DESC
     LIMIT ?
   `).all(guildId, Math.min(25, Math.max(1, Number(limit) || 10)));
+}
+
+export function getGameChannels(guildId) {
+  return db.prepare(
+    'SELECT channel_id AS channelId FROM game_channels WHERE guild_id = ? ORDER BY channel_id'
+  ).all(guildId).map(row => row.channelId);
+}
+
+export function addGameChannel(guildId, channelId, max = 10) {
+  const channels = getGameChannels(guildId);
+  if (channels.includes(String(channelId))) return { ok: false, reason: 'already' };
+  if (channels.length >= max) return { ok: false, reason: 'limit' };
+  db.prepare('INSERT INTO game_channels (guild_id, channel_id) VALUES (?, ?)').run(guildId, String(channelId));
+  return { ok: true, reason: null };
+}
+
+export function removeGameChannel(guildId, channelId) {
+  const result = db.prepare('DELETE FROM game_channels WHERE guild_id = ? AND channel_id = ?').run(guildId, String(channelId));
+  return result.changes > 0;
+}
+
+export function isGroupGameChannelAllowed(guildId, channelId) {
+  const channels = getGameChannels(guildId);
+  return channels.length === 0 || channels.includes(String(channelId));
 }
