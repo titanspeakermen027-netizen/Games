@@ -8,6 +8,7 @@ import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   EmbedBuilder,
+  ChannelType,
 } from 'discord.js';
 import {
   handleGameCommand,
@@ -19,7 +20,18 @@ import {
   cancelActiveGame,
 } from './games-engine.js';
 import { handleDrawMessage, handleDrawButton, startDrawGame, stopDrawState } from './draw-game.js';
-import { initDatabase, getGuildSettings, setGuildSettings, getPlayerStats, getLeaderboard, setDrawSettings } from './store.js';
+import {
+  initDatabase,
+  getGuildSettings,
+  setGuildSettings,
+  getPlayerStats,
+  getLeaderboard,
+  setDrawSettings,
+  getGameChannels,
+  addGameChannel,
+  removeGameChannel,
+} from './store.js';
+import { GameVoting } from './game-voting.js';
 
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
@@ -27,6 +39,8 @@ const guildId = process.env.GUILD_ID || null;
 
 if (!token || !clientId) throw new Error('يرجى ضبط DISCORD_TOKEN و CLIENT_ID في ملف البيئة.');
 await initDatabase();
+
+const voting = new GameVoting();
 
 const client = new Client({
   intents: [
@@ -40,7 +54,7 @@ const client = new Client({
 
 const choices = [
   ['xo', 'XO'], ['mafia', 'مافيا'], ['chairs', 'كراسي'], ['rps', 'حجرة ورقة مقص'],
-  ['dice', 'نرد'], ['hotxo', 'HotXO'], ['hide', 'غميضة'], ['replica', 'ريبلكا'],
+  ['dice', 'نرد'], ['hotxo', 'HotXO'], ['hide', 'غميضة'], ['race', 'سباق'], ['replica', 'ريبلكا'],
   ['country', 'خمّن الدولة'], ['draw', 'خمّن الرسمة'], ['word', 'خمّن الكلمة'], ['wheel', 'روليت'],
   ['button', 'زر'], ['fast', 'أسرع'], ['split', 'فكك'], ['merge', 'ادمج'], ['flag', 'أعلام'],
   ['reverse', 'اعكس'], ['letter', 'حرف'], ['correct', 'صحح'], ['sort', 'ترتيب'], ['colors', 'ألوان'],
@@ -63,7 +77,8 @@ const settings = new SlashCommandBuilder()
   .addRoleOption(option => option.setName('رئيس_الفعاليات').setDescription('الرتبة المسموح لها بإدارة الفعاليات'))
   .addIntegerOption(option => option.setName('نقاط_الفائز').setDescription('النقاط التي يحصل عليها كل فائز').setMinValue(1).setMaxValue(50))
   .addIntegerOption(option => option.setName('الحد_الأقصى').setDescription('الحد الأقصى للاعبين في الفعالية').setMinValue(2).setMaxValue(20))
-  .addIntegerOption(option => option.setName('مدة_الانتظار').setDescription('مدة الـLobby بالثواني').setMinValue(10).setMaxValue(120));
+  .addIntegerOption(option => option.setName('مدة_الانتظار').setDescription('مدة الـLobby بالثواني').setMinValue(10).setMaxValue(120))
+  .addChannelOption(option => option.setName('روم_الألعاب_الفردية').setDescription('اجعل الألعاب الفردية تعمل فقط داخل هذه الروم').addChannelTypes(ChannelType.GuildText));
 
 const drawSettingsCommand = new SlashCommandBuilder()
   .setName('إعدادات-الرسمة')
@@ -84,10 +99,27 @@ const stats = new SlashCommandBuilder().setName('نقاطي').setDescription('ع
 const leaderboard = new SlashCommandBuilder().setName('ترتيب-الألعاب').setDescription('عرض أفضل لاعبي الألعاب في هذا السيرفر');
 const stop = new SlashCommandBuilder().setName('إيقاف-اللعبة').setDescription('إيقاف اللعبة الحالية في القناة');
 
+const addGameChannelCommand = new SlashCommandBuilder()
+  .setName('إضافة-روم-ألعاب')
+  .setDescription('إضافة روم مسموحة للفعاليات الجماعية')
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+  .addChannelOption(option => option.setName('الروم').setDescription('الروم المسموح فيها').setRequired(true).addChannelTypes(ChannelType.GuildText));
+
+const removeGameChannelCommand = new SlashCommandBuilder()
+  .setName('إزالة-روم-ألعاب')
+  .setDescription('إزالة روم من رومات الفعاليات الجماعية')
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+  .addChannelOption(option => option.setName('الروم').setDescription('الروم التي تريد إزالتها').setRequired(true).addChannelTypes(ChannelType.GuildText));
+
+const listGameChannelsCommand = new SlashCommandBuilder()
+  .setName('رومات-الألعاب')
+  .setDescription('عرض رومات الفعاليات الجماعية المسموح بها')
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+
 const rest = new REST({ version: '10' }).setToken(token);
 await rest.put(
   guildId ? Routes.applicationGuildCommands(clientId, guildId) : Routes.applicationCommands(clientId),
-  { body: [play, settings, drawSettingsCommand, stats, leaderboard, stop].map(command => command.toJSON()) },
+  { body: [play, settings, drawSettingsCommand, stats, leaderboard, stop, addGameChannelCommand, removeGameChannelCommand, listGameChannelsCommand].map(command => command.toJSON()) },
 );
 
 client.once('ready', () => {
@@ -108,6 +140,8 @@ async function handleSettingsCommand(interaction) {
   if (points !== null) patch.winnerPoints = points;
   if (maxPlayers !== null) patch.maxPlayers = maxPlayers;
   if (lobbySeconds !== null) patch.lobbySeconds = lobbySeconds;
+  const individualChannel = interaction.options.getChannel('روم_الألعاب_الفردية');
+  if (individualChannel) patch.individualGameChannelId = individualChannel.id;
 
   const current = setGuildSettings(interaction.guildId, patch);
   return interaction.reply({
@@ -118,6 +152,7 @@ async function handleSettingsCommand(interaction) {
         `🏆 نقاط الفائز: **${current.winnerPoints}**`,
         `👥 الحد الأقصى: **${current.maxPlayers}** لاعب`,
         `⏱️ مدة الـLobby: **${current.lobbySeconds}** ثانية`,
+        `🎯 روم الألعاب الفردية: ${current.individualGameChannelId ? `<#${current.individualGameChannelId}>` : 'كل الرومات'}`,
         '',
         'الفردي: `.<اللعبة>` — متاح للجميع ولا يمنح نقاطاً.',
         'الجماعي: `-<اللعبة>` — فعالية تحتاج الإدارة أو رئيس الفعاليات وتمنح نقاطاً للفائزين.',
@@ -225,8 +260,25 @@ client.on('interactionCreate', async interaction => {
         await handleLeaderboardCommand(interaction);
       } else if (interaction.commandName === 'إيقاف-اللعبة') {
         await stopCurrentGame(interaction);
+      } else if (interaction.commandName === 'إضافة-روم-ألعاب') {
+        const channel = interaction.options.getChannel('الروم', true);
+        const result = addGameChannel(interaction.guildId, channel.id);
+        const content = result.ok ? `✅ تزادت ${channel} لرومات الفعاليات الجماعية.` : result.reason === 'limit' ? '❌ وصلتي للحد الأقصى ديال 10 رومات للفعاليات.' : '⚠️ هاد الروم مضافة من قبل.';
+        await interaction.reply({ content, ephemeral: true });
+      } else if (interaction.commandName === 'إزالة-روم-ألعاب') {
+        const channel = interaction.options.getChannel('الروم', true);
+        const removed = removeGameChannel(interaction.guildId, channel.id);
+        await interaction.reply({ content: removed ? `✅ تحيدات ${channel} من رومات الفعاليات.` : '⚠️ هاد الروم ما كانتش مضافة.', ephemeral: true });
+      } else if (interaction.commandName === 'رومات-الألعاب') {
+        const ids = getGameChannels(interaction.guildId);
+        const content = ids.length ? `🎮 **رومات الفعاليات:**\n${ids.map((id, i) => `**${i + 1}.** <#${id}>`).join('\n')}` : 'ℹ️ ما تحددات حتى روم، وبالتالي الفعاليات مسموحة في جميع الرومات.';
+        await interaction.reply({ content, ephemeral: true });
       }
       return;
+    }
+
+    if (interaction.isStringSelectMenu()) {
+      if (await voting.handleInteraction(interaction)) return;
     }
 
     if (interaction.isButton()) {
@@ -249,6 +301,7 @@ client.on('interactionCreate', async interaction => {
 
 client.on('messageCreate', async message => {
   if (!message.guild || message.author.bot) return;
+  if (await voting.handleMessage(message)) return;
   const command = message.content.trim().split(/\s+/)[0];
 
   if (command === '-رسمة') {
