@@ -36,7 +36,6 @@ export const PREFIX_ALIASES = {
     '.اعلام': 'flag', '.أعلام': 'flag', '.اعكس': 'reverse', '.حرف': 'letter', '.صحح': 'correct',
     '.ترتيب': 'sort', '.الوان': 'colors', '.ألوان': 'colors', '.ايموجي': 'emoji', '.إيموجي': 'emoji',
     '.اكشف': 'reveal',
-    '.زر': 'button',
     '-زر': 'button', '-اسرع': 'fast', '-أسرع': 'fast', '-فكك': 'split', '-ادمج': 'merge',
     '-اعلام': 'flag', '-أعلام': 'flag', '-اعكس': 'reverse', '-حرف': 'letter', '-صحح': 'correct',
     '-ترتيب': 'sort', '-لون': 'colors', '-الوان': 'colors', '-ألوان': 'colors', '-ايموجي': 'emoji', '-إيموجي': 'emoji',
