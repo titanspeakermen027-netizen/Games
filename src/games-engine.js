@@ -4,12 +4,12 @@ import {
   ButtonStyle,
   EmbedBuilder,
 } from 'discord.js';
-import { getGuildSettings, recordGame } from './store.js';
+import { getGuildSettings, recordGame, isGroupGameChannelAllowed } from './store.js';
 
 export const activeGames = new Map();
 
 export const GROUP_GAMES = new Set([
-  'xo', 'mafia', 'chairs', 'rps', 'dice', 'hotxo', 'hide',
+  'xo', 'mafia', 'chairs', 'rps', 'dice', 'hotxo', 'hide', 'race',
   'replica', 'country', 'draw', 'word', 'wheel',
 ]);
 
@@ -21,7 +21,7 @@ export const SOLO_GAMES = new Set([
 export const GAME_NAMES = {
   xo: 'XO', mafia: 'مافيا', chairs: 'كراسي', rps: 'حجرة ورقة مقص', dice: 'نرد', hotxo: 'HotXO',
   hide: 'غميضة', replica: 'ريبلكا', country: 'خمّن الدولة', draw: 'خمّن الرسمة', word: 'خمّن الكلمة',
-  wheel: 'روليت', button: 'زر', fast: 'أسرع', split: 'فكك', merge: 'ادمج', flag: 'أعلام', reverse: 'اعكس',
+  wheel: 'روليت', race: 'سباق', button: 'زر', fast: 'أسرع', split: 'فكك', merge: 'ادمج', flag: 'أعلام', reverse: 'اعكس',
   letter: 'حرف', correct: 'صحح', sort: 'ترتيب', colors: 'ألوان', emoji: 'إيموجي', reveal: 'اكشف',
 };
 
@@ -29,13 +29,23 @@ export const PREFIX_ALIASES = {
   group: {
     '-xo': 'xo', '-إكسو': 'xo', '-مافيا': 'mafia', '-كراسي': 'chairs', '-حجرة': 'rps',
     '-حجرةورقةمقص': 'rps', '-نرد': 'dice', '-hotxo': 'hotxo', '-غميضة': 'hide',
-    '-ريبلكا': 'replica', '-دولة': 'country', '-رسمة': 'draw', '-كلمة': 'word', '-روليت': 'wheel',
+    '-ريبلكا': 'replica', '-دولة': 'country', '-رسمة': 'draw', '-كلمة': 'word', '-روليت': 'wheel', '-سباق': 'race',
   },
   solo: {
     '.زر': 'button', '.button': 'button', '.اسرع': 'fast', '.أسرع': 'fast', '.فكك': 'split', '.ادمج': 'merge',
     '.اعلام': 'flag', '.أعلام': 'flag', '.اعكس': 'reverse', '.حرف': 'letter', '.صحح': 'correct',
     '.ترتيب': 'sort', '.الوان': 'colors', '.ألوان': 'colors', '.ايموجي': 'emoji', '.إيموجي': 'emoji',
     '.اكشف': 'reveal',
+    '.زر': 'button',
+    '-زر': 'button', '-اسرع': 'fast', '-أسرع': 'fast', '-فكك': 'split', '-ادمج': 'merge',
+    '-اعلام': 'flag', '-أعلام': 'flag', '-اعكس': 'reverse', '-حرف': 'letter', '-صحح': 'correct',
+    '-ترتيب': 'sort', '-لون': 'colors', '-الوان': 'colors', '-ألوان': 'colors', '-ايموجي': 'emoji', '-إيموجي': 'emoji',
+    '-اكشف': 'reveal', '-فاستكليك': 'button', '-fastclick': 'button', '-فاستتايب': 'fast', '-fasttype': 'fast',
+    '-تكستسبليت': 'split', '-textsplit': 'split', '-ميرجتكست': 'merge', '-mergetext': 'merge',
+    '-خمنالعلم': 'flag', '-guessflag': 'flag', '-ريكفرس': 'reverse', '-textreverse': 'reverse',
+    '-صححالحرف': 'correct', '-correctletter': 'correct', '-رتبالارقام': 'sort', '-sortnumbers': 'sort',
+    '-خمناللون': 'colors', '-guesscolor': 'colors', '-خمنالايموجي': 'emoji', '-findemoji': 'emoji',
+    '-اكشفالكلمة': 'reveal', '-textreveal': 'reveal',
   },
 };
 
@@ -58,7 +68,7 @@ export function canRunGroup(member, settings) {
 
 function minPlayers(gameId) {
   if (gameId === 'mafia') return 4;
-  if (gameId === 'chairs') return 3;
+  if (gameId === 'chairs' || gameId === 'race') return 3;
   return 2;
 }
 
@@ -122,18 +132,34 @@ async function safeReply(interaction, payload) {
   return interaction.reply(payload).catch(() => {});
 }
 
+export async function startGroupGame(source, gameId) {
+  if (!GROUP_GAMES.has(gameId)) {
+    return safeReply(source, { content: '❌ هذه الفعالية غير متاحة حالياً.', ephemeral: true });
+  }
+  if (activeGames.has(source.channelId)) {
+    return safeReply(source, { content: '⚠️ توجد لعبة أو فعالية نشطة في هذه القناة.', ephemeral: true });
+  }
+
+  const settings = getGuildSettings(source.guildId);
+  if (!canRunGroup(source.member || source.user?.member || source.guild?.members?.cache?.get(source.user?.id || source.author?.id), settings)) {
+    return safeReply(source, { content: '⛔ الألعاب الجماعية هي فعاليات، وتحتاج صلاحية الإدارة أو رتبة رئيس الفعاليات.', ephemeral: true });
+  }
+  if (!isGroupGameChannelAllowed(source.guildId, source.channelId)) {
+    return safeReply(source, { content: '🚫 هاد الروم ما مسموحش فيه تشغيل الفعاليات الجماعية.', ephemeral: true });
+  }
+  return createGroupLobby(source, gameId);
+}
+
 export async function handleGameCommand(interaction, gameId) {
   if (!GROUP_GAMES.has(gameId) && !SOLO_GAMES.has(gameId)) return safeReply(interaction, { content: '❌ هذه اللعبة غير متاحة حالياً.', ephemeral: true });
   if (activeGames.has(interaction.channelId)) return safeReply(interaction, { content: '⚠️ توجد لعبة أو فعالية نشطة في هذه القناة.', ephemeral: true });
 
-  if (GROUP_GAMES.has(gameId)) {
-    const settings = getGuildSettings(interaction.guildId);
-    if (!canRunGroup(interaction.member, settings)) {
-      return safeReply(interaction, { content: '⛔ الألعاب الجماعية هي فعاليات، وتحتاج صلاحية الإدارة أو رتبة رئيس الفعاليات.', ephemeral: true });
-    }
-    return createGroupLobby(interaction, gameId);
-  }
+  if (GROUP_GAMES.has(gameId)) return startGroupGame(interaction, gameId);
 
+  const settings = getGuildSettings(interaction.guildId);
+  if (settings.individualGameChannelId && settings.individualGameChannelId !== interaction.channelId) {
+    return safeReply(interaction, { content: '🚫 الألعاب الفردية مخصصة لروم أخرى في هذا السيرفر.', ephemeral: true });
+  }
   return startSolo(interaction.channel, interaction.guildId, gameId, interaction.user.id, interaction);
 }
 
@@ -201,6 +227,7 @@ async function launchGroup(state, channel) {
       case 'hotxo': return playXO(channel, state, true);
       case 'rps': return playRPS(channel, state);
       case 'dice': return playDice(channel, state);
+      case 'race': return playRace(channel, state);
       case 'chairs': return playChairs(channel, state);
       case 'mafia': return playMafia(channel, state);
       case 'hide': return playHide(channel, state);
@@ -256,14 +283,15 @@ export async function handlePrefixGame(message, command) {
   }
 
   if (groupId) {
-    if (!canRunGroup(message.member, getGuildSettings(message.guildId))) {
-      await message.reply('⛔ غير الإدارة أو رئيس الفعاليات يقدرو يبداو الفعاليات الجماعية.').catch(() => {});
-      return true;
-    }
-    await createGroupLobby(message, groupId);
+    await startGroupGame(message, groupId);
     return true;
   }
 
+  const settings = getGuildSettings(message.guildId);
+  if (settings.individualGameChannelId && settings.individualGameChannelId !== message.channelId) {
+    await message.reply('🚫 الألعاب الفردية مخصصة لروم أخرى في هذا السيرفر.').catch(() => {});
+    return true;
+  }
   await startSolo(message.channel, message.guildId, soloId, message.author.id, message);
   return true;
 }
@@ -455,6 +483,45 @@ async function playChairs(channel, state) {
   }
   state.currentRound = null;
   await finish(state, channel, players[0] ? [players[0]] : []);
+}
+
+async function playRace(channel, state) {
+  const players = [...state.players];
+  const positions = Object.fromEntries(players.map(id => [id, 0]));
+  const target = 30;
+
+  await channel.send({
+    embeds: [new EmbedBuilder()
+      .setTitle('🏁 سباق')
+      .setDescription('استعدوا! كل جولة كتزيد المسافة بشكل عشوائي.')
+    ],
+  }).catch(() => {});
+
+  while (Math.max(...Object.values(positions), 0) < target && !state.cancelled) {
+    for (const id of players) positions[id] += 1 + Math.floor(Math.random() * 6);
+
+    const rows = players.map(id => {
+      const progress = Math.min(10, Math.floor((positions[id] * 10) / target));
+      return `<@${id}> ${'🟩'.repeat(progress)}${'⬜'.repeat(10 - progress)} **${positions[id]}**`;
+    });
+
+    await channel.send({
+      embeds: [new EmbedBuilder()
+        .setTitle('🏁 السباق')
+        .setDescription(rows.join('\n'))],
+    }).catch(() => {});
+
+    await sleep(1200);
+  }
+
+  const top = Math.max(...players.map(id => positions[id]), 0);
+  const winners = players.filter(id => positions[id] === top);
+  await finish(
+    state,
+    channel,
+    winners,
+    `📊 النتيجة النهائية:\n${players.map(id => `<@${id}> — **${positions[id]}**`).join('\n')}\n\n🏆 الفائز: ${mention(winners)}`,
+  );
 }
 
 async function playDice(channel, state) {
