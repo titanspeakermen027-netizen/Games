@@ -127,6 +127,7 @@ export function setGuildSettings(guildId, patch = {}) {
     winnerPoints: Object.hasOwn(patch, 'winnerPoints') ? Math.min(50, Math.max(1, Number(patch.winnerPoints) || 10)) : current.winnerPoints,
     maxPlayers: Object.hasOwn(patch, 'maxPlayers') ? Math.min(20, Math.max(2, Number(patch.maxPlayers) || 20)) : current.maxPlayers,
     lobbySeconds: Object.hasOwn(patch, 'lobbySeconds') ? Math.min(120, Math.max(10, Number(patch.lobbySeconds) || 30)) : current.lobbySeconds,
+    individualGameChannelId: Object.hasOwn(patch, 'individualGameChannelId') ? (patch.individualGameChannelId || null) : current.individualGameChannelId,
   };
 
   db.prepare(`
