@@ -22,3 +22,4 @@ jobs:
           node --check src/games-engine.js
           node --check src/games-safe.js
           node --check src/store.js
+          node --check src/game-voting.js
