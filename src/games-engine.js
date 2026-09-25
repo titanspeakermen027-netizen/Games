@@ -5,6 +5,7 @@ import {
   EmbedBuilder,
 } from 'discord.js';
 import { getGuildSettings, recordGame, isGroupGameChannelAllowed } from './store.js';
+import { sendElimination } from './elimination-stickers.js';
 
 export const activeGames = new Map();
 
@@ -378,7 +379,10 @@ async function playXO(channel, state, hot) {
       });
       clearTimeout(state.currentRound?.timer);
       state.currentRound = null;
-      if (winnerId) next.push(winnerId); else next.push(random([a, b]));
+      const winner = winnerId || random([a, b]);
+      const loser = winner === a ? b : a;
+      if (loser) await sendElimination(channel, loser, 'خرج من جولة XO.');
+      next.push(winner);
     }
     players = shuffle(next);
   }
@@ -437,7 +441,10 @@ async function playRPS(channel, state) {
     for (const id of alive) if (!picks.has(id)) picks.set(id, Math.floor(Math.random() * 3));
     const result = rpsWinner([...picks.values()]);
     if (result === null) { await channel.send('🤝 تعادل — جولة جديدة.'); continue; }
-    alive = alive.filter(id => picks.get(id) === result);
+    const survivors = alive.filter(id => picks.get(id) === result);
+    const eliminated = alive.filter(id => !survivors.includes(id));
+    for (const id of eliminated) await sendElimination(channel, id, 'خرج من جولة حجرة ورقة مقص.');
+    alive = survivors;
     if (alive.length > 1) await channel.send(`⭐ المتبقون: ${mention(alive)}`);
   }
   state.currentRound = null;
@@ -478,7 +485,8 @@ async function playChairs(channel, state) {
     clearTimeout(state.currentRound.timer);
     const out = shuffle(players.filter(id => !state.currentRound.seated.has(id)))[0] || random(players);
     players = players.filter(id => id !== out);
-    await channel.send(`❌ خرج: <@${out}>\n✅ الباقون: ${mention(players)}`);
+    await sendElimination(channel, out, 'ما لقا كرسي وخرج من الجولة.');
+    await channel.send(`✅ الباقون: ${mention(players)}`);
   }
   state.currentRound = null;
   await finish(state, channel, players[0] ? [players[0]] : []);
@@ -550,6 +558,8 @@ async function playMafia(channel, state) {
   const town = players.filter(id => !mafia.has(id));
   const mafiaWins = mafia.size >= Math.max(1, town.length - 1);
   const winners = mafiaWins ? [...mafia] : town;
+  const losers = players.filter(id => !winners.includes(id));
+  for (const id of losers) await sendElimination(channel, id, 'خرج من مافيا.');
   await finish(state, channel, winners, `🎭 النتيجة: **${mafiaWins ? 'المافيا فازت' : 'المواطنون فازوا'}**\n🏆 ${mention(winners)}`);
 }
 
@@ -560,7 +570,8 @@ async function playHide(channel, state) {
   await sleep(8000);
   const found = new Set(shuffle(hiders).slice(0, Math.floor(hiders.length / 2)));
   const survivors = hiders.filter(id => !found.has(id));
-  await channel.send(`🔎 تم العثور على: ${found.size ? mention([...found]) : 'حتى واحد'}\n🙈 الناجون: ${survivors.length ? mention(survivors) : 'لا أحد'}`);
+  for (const id of found) await sendElimination(channel, id, 'تم اكتشافه وخرج من غميضة.');
+  await channel.send(`🙈 الناجون: ${survivors.length ? mention(survivors) : 'لا أحد'}`);
   await finish(state, channel, survivors.length ? survivors : [seeker]);
 }
 
@@ -585,7 +596,8 @@ async function playWheel(channel, state) {
     await sleep(700);
     const out = random(pool);
     pool = pool.filter(id => id !== out);
-    await channel.send(`🎡 خرج: <@${out}>\n👥 المتبقون: ${mention(pool)}`);
+    await sendElimination(channel, out, 'خرج من الروليت.');
+    await channel.send(`👥 المتبقون: ${mention(pool)}`);
   }
   await finish(state, channel, pool.length ? [pool[0]] : []);
 }

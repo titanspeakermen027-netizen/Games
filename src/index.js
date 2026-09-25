@@ -32,6 +32,12 @@ import {
   removeGameChannel,
 } from './store.js';
 import { GameVoting } from './game-voting.js';
+import {
+  isExtraGame,
+  handleExtraGameCommand,
+  handleExtraButton,
+  handleExtraPrefix,
+} from './extra-games.js';
 
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
@@ -52,23 +58,27 @@ const client = new Client({
   partials: [Partials.GuildMember, Partials.Channel],
 });
 
-const choices = [
+const GAME_OPTIONS = [
   ['xo', 'XO'], ['mafia', 'مافيا'], ['chairs', 'كراسي'], ['rps', 'حجرة ورقة مقص'],
-  ['dice', 'نرد'], ['hotxo', 'HotXO'], ['hide', 'غميضة'], ['race', 'سباق'], ['replica', 'ريبلكا'],
-  ['country', 'خمّن الدولة'], ['draw', 'خمّن الرسمة'], ['word', 'خمّن الكلمة'], ['wheel', 'روليت'],
-  ['button', 'زر'], ['fast', 'أسرع'], ['split', 'فكك'], ['merge', 'ادمج'], ['flag', 'أعلام'],
-  ['reverse', 'اعكس'], ['letter', 'حرف'], ['correct', 'صحح'], ['sort', 'ترتيب'], ['colors', 'ألوان'],
-  ['emoji', 'إيموجي'], ['reveal', 'اكشف'],
+  ['dice', 'نرد'], ['hotxo', 'HotXO'], ['hide', 'غميضة'], ['race', 'سباق'],
+  ['replica', 'ريبلكا'], ['country', 'خمّن الدولة'], ['draw', 'خمّن الرسمة'],
+  ['word', 'خمّن الكلمة'], ['wheel', 'روليت'], ['bomb', 'بومب'], ['connect', 'وصل'],
+  ['riddle', 'لغز'], ['button', 'زر'], ['fast', 'أسرع'], ['split', 'فكك'],
+  ['merge', 'ادمج'], ['flag', 'أعلام'], ['reverse', 'اعكس'], ['letter', 'حرف'],
+  ['correct', 'صحح'], ['sort', 'ترتيب'], ['colors', 'ألوان'], ['emoji', 'إيموجي'],
+  ['reveal', 'اكشف'], ['letters', 'حروف'], ['solid', 'جماد'], ['wordsolo', 'كلمة'],
+  ['chain', 'اشبك'], ['capitals', 'عواصم'], ['singular', 'مفرد'], ['plural', 'جمع'],
+  ['number', 'رقم'], ['math', 'حساب'],
 ];
 
 const play = new SlashCommandBuilder()
   .setName('لعب')
   .setDescription('بدء لعبة فردية أو فعالية جماعية')
-  .addStringOption(option => {
-    option.setName('اللعبة').setDescription('اختر اللعبة').setRequired(true);
-    for (const [value, name] of choices) option.addChoices({ name, value });
-    return option;
-  });
+  .addStringOption(option => option
+    .setName('اللعبة')
+    .setDescription('ابحث عن اللعبة التي تريد تشغيلها')
+    .setRequired(true)
+    .setAutocomplete(true));
 
 const settings = new SlashCommandBuilder()
   .setName('إعدادات-الألعاب')
@@ -245,10 +255,20 @@ async function stopCurrentGame(interaction) {
 
 client.on('interactionCreate', async interaction => {
   try {
+    if (interaction.isAutocomplete()) {
+      if (interaction.commandName !== 'لعب') return interaction.respond([]).catch(() => {});
+      const query = interaction.options.getString('اللعبة')?.toLowerCase() || '';
+      const rows = GAME_OPTIONS
+        .filter(([value, name]) => value.toLowerCase().includes(query) || name.toLowerCase().includes(query))
+        .slice(0, 25)
+        .map(([value, name]) => ({ name, value }));
+      return interaction.respond(rows).catch(() => {});
+    }
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName === 'لعب') {
         const game = interaction.options.getString('اللعبة', true);
-        if (game === 'draw') await startDrawSafely(interaction);
+        if (isExtraGame(game)) await handleExtraGameCommand(interaction, game);
+        else if (game === 'draw') await startDrawSafely(interaction);
         else await handleGameCommand(interaction, game);
       } else if (interaction.commandName === 'إعدادات-الألعاب') {
         await handleSettingsCommand(interaction);
@@ -282,6 +302,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.isButton()) {
+      if (await handleExtraButton(interaction)) return;
       if (interaction.customId.startsWith('draw:') || interaction.customId.startsWith('drawlobby:')) {
         await handleDrawButton(interaction);
       } else {
@@ -326,6 +347,7 @@ client.on('messageCreate', async message => {
       await handleDrawMessage(message).catch(error => console.error('[draw]', error));
       return;
     }
+    if (await handleExtraPrefix(message)) return;
     const handledDrawGuess = await handleDrawMessage(message);
     if (handledDrawGuess) return;
     await handlePrefixGame(message, command);
