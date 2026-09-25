@@ -15,7 +15,7 @@ const VOTE_OPTIONS = [
   ["chairs", "كراسي"],
   ["dice", "نرد"],
   ["connect", "وصل"],
-  ["riddle", "لغم"],
+  ["mine", "لغم"],
 ];
 
 class VoteSession {
