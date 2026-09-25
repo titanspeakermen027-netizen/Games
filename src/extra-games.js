@@ -12,7 +12,7 @@ import {
 } from "./store.js";
 import { sendElimination } from "./elimination-stickers.js";
 
-export const EXTRA_GROUP_GAMES = new Set(["bomb", "connect", "riddle"]);
+export const EXTRA_GROUP_GAMES = new Set(["bomb", "mine", "connect", "riddle"]);
 export const EXTRA_SOLO_GAMES = new Set([
   "letters",
   "solid",
@@ -27,6 +27,7 @@ export const EXTRA_SOLO_GAMES = new Set([
 
 export const EXTRA_GAME_NAMES = {
   bomb: "بومب",
+  mine: "لغم",
   connect: "وصل",
   riddle: "لغز",
   letters: "حروف",
@@ -42,7 +43,8 @@ export const EXTRA_GAME_NAMES = {
 
 export const EXTRA_PREFIX_ALIASES = {
   "-بومب": "bomb",
-  "-لغم": "bomb",
+  "-لغم": "mine",
+  "-mine": "mine",
   "-bomb": "bomb",
   "-وصل": "connect",
   "-connect": "connect",
@@ -71,6 +73,7 @@ const keygen = () => Math.random().toString(36).slice(2, 10);
 
 const GROUP_MIN_PLAYERS = {
   bomb: 4,
+  mine: 4,
   connect: 2,
   riddle: 2,
 };
@@ -222,7 +225,7 @@ async function startExtraGroup(state, channel) {
   state.started = true;
   clearTimeout(state.timeout);
   await state.message?.edit({ components: extraLobbyComponents(state, true) }).catch(() => {});
-  if (state.id === "bomb") return playBomb(channel, state);
+  if (state.id === "bomb" || state.id === "mine") return playBomb(channel, state);
   if (state.id === "connect") return playConnect(channel, state);
   if (state.id === "riddle") return playRiddle(channel, state);
   return finishExtra(state, channel, [], "تعذر تشغيل الفعالية.");
@@ -278,6 +281,7 @@ function bombButtons(roundKey, disabled = false) {
 }
 
 async function playBomb(channel, state) {
+  const title = state.id === "mine" ? "⛏️ لغم" : "💣 بومب";
   let alive = [...state.players];
 
   while (alive.length > 1 && !state.cancelled) {
@@ -298,7 +302,7 @@ async function playBomb(channel, state) {
     const roundMessage = await channel.send({
       embeds: [
         new EmbedBuilder()
-          .setTitle("💣 بومب")
+          .setTitle(title)
           .setDescription(
             "كل لاعب يختار صندوقاً واحداً.\n" +
             "صندوق واحد فقط فيه اللغم.\n\n" +
@@ -955,7 +959,7 @@ export async function handleExtraButton(interaction) {
     await round.message?.edit({
       embeds: [
         new EmbedBuilder()
-          .setTitle("💣 بومب")
+          .setTitle(title)
           .setDescription(
             "تم تسجيل: **" + round.picks.size + "/" + round.alive.length + "** لاعبين.",
           ),
