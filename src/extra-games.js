@@ -490,6 +490,10 @@ async function playConnect(channel, state) {
     clearTimeout(round.timer);
     if (state.finished || state.cancelled || round.done) break;
 
+    // A normal button move was already applied by handleConnectButton.
+    // Only the inactivity timeout performs an automatic move.
+    if (result === "move") continue;
+
     const playerIndex = round.turn;
     const available = [];
     for (let col = 0; col < 7; col++) {
@@ -501,7 +505,7 @@ async function playConnect(channel, state) {
       break;
     }
 
-    const chosen = result === "timeout" ? random(available) : random(available);
+    const chosen = random(available);
     const piece = playerIndex === 0 ? "A" : "B";
     dropConnectPiece(round, chosen);
 
