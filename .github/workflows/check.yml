@@ -16,10 +16,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Check JavaScript syntax
+      - name: Check all JavaScript syntax
         run: |
-          node --check src/index.js
-          node --check src/games-engine.js
-          node --check src/games-safe.js
-          node --check src/store.js
-          node --check src/game-voting.js
+          for file in src/*.js; do
+            echo "Checking $file"
+            node --check "$file"
+          done
